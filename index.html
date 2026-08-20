@@ -380,8 +380,7 @@
       background: linear-gradient(180deg, rgba(243,230,207,0), var(--cream) 28%);
     }
     .badge {
-      display: inline-block;
-      margin-top: 4px;
+      display: inline;
       font-size: 11px;
       font-weight: 700;
       letter-spacing: .02em;
@@ -678,7 +677,7 @@
     function viewServices() {
       return state.services.filter(s => s.active).map(s => `
         <button class="service ${state.service?.id === s.id ? "selected" : ""}" data-service="${s.id}" type="button">
-          <div><strong>${esc(s.name)}</strong><br><small>${s.minutes} min</small>${s.requires_deposit ? `<div class="badge">Non-refundable deposit ${esc(money(s.deposit_amount))}</div>` : ""}</div>
+          <div><strong>${esc(s.name)}</strong><br><small>${s.minutes} min</small>${s.requires_deposit ? ` <span class="badge">/ Non-refundable deposit ${esc(money(s.deposit_amount))}</span>` : ""}</div>
           <div class="price">${esc(money(s.price))}</div>
         </button>`).join("");
     }
