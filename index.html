@@ -249,7 +249,6 @@
     <footer>
       <div>1011 N Broadway, Suite 3 · Tecumseh, OK</div>
       <div><a href="tel:+19187586486">918-758-6486</a> · <a href="https://www.facebook.com/profile.php?id=61591742622203" target="_blank" rel="noopener">Facebook</a></div>
-      <div style="margin-top:10px"><a href="#/owner">Owner</a></div>
     </footer>
   </div>
 
@@ -402,7 +401,7 @@
 
     function routeFromHash() {
       const h = (location.hash || "#/").replace(/^#\/?/, "");
-      if (h.startsWith("owner")) return "owner";
+      if (h === "backbar") return "owner";
       if (h.startsWith("book")) return "book";
       if (h.startsWith("done")) return "done";
       return "home";
@@ -524,11 +523,9 @@
     function viewOwnerLogin() {
       return `
         <section class="card stack">
-          <h2>Owner</h2>
-          <p class="muted">Last four of the shop number.</p>
           ${state.error ? `<p class="err">${esc(state.error)}</p>` : ""}
-          <input class="pin" id="pin" inputmode="numeric" maxlength="4" autocomplete="off" />
-          <button class="btn btn-red" id="pinBtn" type="button">Open portal</button>
+          <input class="pin" id="pin" inputmode="numeric" maxlength="4" autocomplete="one-time-code" />
+          <button class="btn btn-red" id="pinBtn" type="button">Continue</button>
         </section>`;
     }
     function viewOwner() {
@@ -737,7 +734,7 @@
       const pin = (document.getElementById("pin")?.value || "").trim();
       state.error = "";
       const { data, error } = await sb.rpc("owner_check_pin", { pin });
-      if (error || !data) { state.error = "That PIN did not work."; render(); return; }
+      if (error || !data) { state.error = "Try again."; render(); return; }
       sessionStorage.setItem(PIN_KEY, pin);
       await refreshOwner();
       render();
@@ -857,7 +854,24 @@
       a.click();
     }
 
+    function listenForStaffEntry() {
+      const mark = document.querySelector(".wordmark");
+      if (!mark) return;
+      let taps = 0;
+      let timer = 0;
+      mark.addEventListener("click", () => {
+        taps += 1;
+        clearTimeout(timer);
+        timer = setTimeout(() => { taps = 0; }, 2200);
+        if (taps >= 7) {
+          taps = 0;
+          location.hash = "#/backbar";
+        }
+      });
+    }
+
     async function boot() {
+      listenForStaffEntry();
       try {
         await loadCatalog();
         if (routeFromHash() === "owner" && ownerPin()) {
