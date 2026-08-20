@@ -11,8 +11,8 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Brassy Monkey" />
-  <link rel="icon" href="logo-crop.jpg" />
-  <link rel="apple-touch-icon" href="logo-crop.jpg" />
+  <link rel="icon" href="apple-touch-icon.png" type="image/png" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Playball&display=swap" rel="stylesheet" />
@@ -121,15 +121,6 @@
     }
     .hours-list li + li { border-top: .5px solid var(--line); }
     .hours-list li span:last-child { color: var(--muted); font-variant-numeric: tabular-nums; }
-    .burst {
-      display: inline-block;
-      background: var(--red);
-      color: #fff;
-      font-weight: 600;
-      font-size: 14px;
-      padding: 8px 14px;
-      border-radius: 999px;
-    }
     .btn {
       display: inline-flex;
       align-items: center;
@@ -535,9 +526,6 @@
             <div><strong>${esc(SHOP.stylist)}</strong>${esc(SHOP.role)}</div>
             <div>Serving men, women &amp; children · Full service salon</div>
             <div>Appointments &amp; walk-ins welcome</div>
-          </div>
-          <div style="text-align:center">
-            <span class="burst">Hot Towel, Shave &amp; Hair Cut $40</span>
           </div>
           <a class="btn btn-red" href="#/book">Book an appointment</a>
           <a class="btn btn-ghost" href="sms:${SHOP.tel}">Text the shop</a>
