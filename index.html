@@ -379,6 +379,32 @@
       padding: 12px 0 calc(8px + var(--safe-b));
       background: linear-gradient(180deg, rgba(243,230,207,0), var(--cream) 28%);
     }
+    .badge {
+      display: inline-block;
+      margin-top: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .02em;
+      color: var(--red);
+    }
+    .sheet-bg {
+      position: fixed;
+      inset: 0;
+      z-index: 30;
+      background: rgba(28, 25, 22, .46);
+      display: grid;
+      place-items: end center;
+      padding: 16px 16px calc(16px + var(--safe-b));
+    }
+    .sheet {
+      width: min(520px, 100%);
+      background: var(--paper);
+      border-radius: 20px;
+      padding: 22px 18px 16px;
+      box-shadow: 0 16px 40px rgba(40, 24, 8, .22);
+    }
+    .sheet h2 { font-size: 22px; margin-bottom: 8px; }
+    .sheet p { margin: 0 0 12px; color: var(--muted); line-height: 1.45; }
     @media (prefers-color-scheme: dark) {
       :root, html, body {
         color-scheme: only light;
@@ -449,7 +475,9 @@
       calCursor: null,
       calDay: null,
       error: "",
-      loading: false
+      loading: false,
+      showDepositModal: false,
+      depositAccepted: false
     };
 
     function publicUrl() {
@@ -623,12 +651,13 @@
             <button class="btn btn-ghost" id="backBtn" type="button">${step === 1 ? "Home" : "Back"}</button>
             ${step < 4 ? `<button class="btn btn-red" id="nextBtn" type="button" ${canNext() ? "" : "disabled"}>Next</button>` : `<button class="btn btn-red" id="bookBtn" type="button" ${state.loading ? "disabled" : ""}>${state.loading ? "Booking…" : "Confirm"}</button>`}
           </div>
-        </section>`;
+        </section>
+        ${state.showDepositModal ? viewDepositModal() : ""}`;
     }
     function viewServices() {
       return state.services.filter(s => s.active).map(s => `
         <button class="service ${state.service?.id === s.id ? "selected" : ""}" data-service="${s.id}" type="button">
-          <div><strong>${esc(s.name)}</strong><br><small>${s.minutes} min</small></div>
+          <div><strong>${esc(s.name)}</strong><br><small>${s.minutes} min</small>${s.requires_deposit ? `<div class="badge">Non-refundable deposit</div>` : ""}</div>
           <div class="price">${esc(money(s.price))}</div>
         </button>`).join("");
     }
@@ -659,6 +688,7 @@
     function viewDetails() {
       return `
         <p class="muted">${esc(state.service?.name || "")} · ${state.time ? esc(formatFull(state.time)) : ""}</p>
+        ${state.service?.requires_deposit ? `<p class="badge">This service requires a non-refundable deposit.</p>` : ""}
         <label class="field">Your name
           <input id="name" autocomplete="name" value="${esc(state.name)}" />
         </label>
@@ -688,6 +718,18 @@
           <a class="btn btn-ghost" href="sms:${SHOP.tel}">Text ${esc(SHOP.phone)}</a>
           <a class="btn btn-ghost" href="#/">Done</a>
         </section>`;
+    }
+    function viewDepositModal() {
+      return `
+        <div class="sheet-bg" id="depositSheet">
+          <div class="sheet stack">
+            <h2>Non-refundable deposit</h2>
+            <p><strong>${esc(state.service?.name || "This service")}</strong> requires a deposit to hold your time with ${esc(SHOP.stylist)}.</p>
+            <p>Once the deposit is paid and this appointment is scheduled, it is <strong>non-refundable</strong>. Payment will be collected in a later step.</p>
+            <button class="btn btn-red" id="depositOk" type="button">I understand</button>
+            <button class="btn btn-ghost" id="depositCancel" type="button">Not now</button>
+          </div>
+        </div>`;
     }
     function viewOwnerLogin() {
       return `
@@ -832,6 +874,7 @@
                 <label class="field">Minutes <input name="minutes" type="number" min="5" step="5" value="${s.minutes}" /></label>
               </div>
               <label class="open-check"><input type="checkbox" name="active" ${s.active ? "checked" : ""} /> Clients can book this</label>
+              <label class="open-check"><input type="checkbox" name="requires_deposit" ${s.requires_deposit ? "checked" : ""} /> Requires Non-refundable Deposit</label>
               <div class="btn-row">
                 <button class="btn btn-red" type="submit">Save</button>
                 <button class="btn btn-ghost" data-del="${s.id}" type="button">Delete</button>
@@ -844,6 +887,7 @@
               <label class="field">Price <input name="price" type="number" min="0" step="0.01" /></label>
               <label class="field">Minutes <input name="minutes" type="number" min="5" step="5" value="45" /></label>
             </div>
+            <label class="open-check"><input type="checkbox" name="requires_deposit" /> Requires Non-refundable Deposit</label>
             <button class="btn btn-gold" type="submit">Add service</button>
           </form>
         </div>`;
@@ -891,8 +935,26 @@
       });
       document.querySelectorAll("[data-service]").forEach(el => el.addEventListener("click", () => {
         state.service = state.services.find(s => s.id === el.dataset.service);
+        state.depositAccepted = false;
+        state.showDepositModal = false;
         render();
       }));
+      document.getElementById("depositOk")?.addEventListener("click", () => {
+        state.depositAccepted = true;
+        state.showDepositModal = false;
+        confirmBook();
+      });
+      document.getElementById("depositCancel")?.addEventListener("click", () => {
+        state.showDepositModal = false;
+        state.loading = false;
+        render();
+      });
+      document.getElementById("depositSheet")?.addEventListener("click", e => {
+        if (e.target.id !== "depositSheet") return;
+        state.showDepositModal = false;
+        state.loading = false;
+        render();
+      });
       document.querySelectorAll("[data-date]").forEach(el => el.addEventListener("click", () => {
         state.date = el.dataset.date;
         state.time = null;
@@ -955,6 +1017,12 @@
 
     async function confirmBook() {
       state.error = "";
+      if (state.service?.requires_deposit && !state.depositAccepted) {
+        state.showDepositModal = true;
+        state.loading = false;
+        render();
+        return;
+      }
       state.loading = true;
       render();
       try {
@@ -1104,6 +1172,7 @@
         p_price: form.price.value === "" ? null : Number(form.price.value),
         p_minutes: Number(form.minutes.value),
         p_active: form.active.checked,
+        p_requires_deposit: form.requires_deposit.checked,
         p_sort: state.services.find(s => s.id === form.dataset.id)?.sort ?? 0
       });
       if (error) { state.error = errText(error); render(); return; }
@@ -1120,6 +1189,7 @@
         p_price: form.price.value === "" ? null : Number(form.price.value),
         p_minutes: Number(form.minutes.value || 45),
         p_active: true,
+        p_requires_deposit: form.requires_deposit.checked,
         p_sort: (state.services.at(-1)?.sort || 0) + 1
       });
       if (error) { state.error = errText(error); render(); return; }
