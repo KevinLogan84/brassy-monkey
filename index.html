@@ -668,25 +668,13 @@
             <button class="tab ${tab === "bookings" ? "on" : ""}" data-tab="bookings" type="button">Bookings</button>
             <button class="tab ${tab === "hours" ? "on" : ""}" data-tab="hours" type="button">Hours</button>
             <button class="tab ${tab === "services" ? "on" : ""}" data-tab="services" type="button">Services</button>
-            <button class="tab ${tab === "share" ? "on" : ""}" data-tab="share" type="button">Share</button>
+            <button class="tab ${tab === "other" ? "on" : ""}" data-tab="other" type="button">Other</button>
           </div>
           ${state.error ? `<p class="err">${esc(state.error)}</p>` : ""}
-          ${state.pinSaved ? `<p class="ok">PIN saved.</p>` : ""}
           ${tab === "bookings" ? viewOwnerBookings() : ""}
           ${tab === "hours" ? viewOwnerHours() : ""}
           ${tab === "services" ? viewOwnerServices() : ""}
-          ${tab === "share" ? viewOwnerShare() : ""}
-          <div class="stack">
-            <h3>Change PIN</h3>
-            <label class="field">New PIN
-              <input class="pin" id="newPin" inputmode="numeric" maxlength="8" autocomplete="off" />
-            </label>
-            <label class="field">Type it again
-              <input class="pin" id="newPin2" inputmode="numeric" maxlength="8" autocomplete="off" />
-            </label>
-            <button class="btn btn-gold" id="pinSave" type="button">Save PIN</button>
-          </div>
-          <button class="btn btn-ghost" id="signOut" type="button">Sign out</button>
+          ${tab === "other" ? viewOwnerOther() : ""}
         </section>`;
     }
     function viewOwnerBookings() {
@@ -763,12 +751,13 @@
           </form>
         </div>`;
     }
-    function viewOwnerShare() {
+    function viewOwnerOther() {
       const url = publicUrl();
       const sms = `sms:&body=${encodeURIComponent("Book at Brassy Monkey: " + url)}`;
       return `
         <div class="stack">
-          <p>This is the link to text, post, or print as a QR code.</p>
+          <h3>Share the booking link</h3>
+          <p>Text, post, or print this as a QR code.</p>
           <input readonly value="${esc(url)}" id="shareUrl" />
           <button class="btn btn-red" id="copyBtn" type="button">Copy link</button>
           <a class="btn btn-ghost" href="${sms}">Text the link</a>
@@ -776,6 +765,16 @@
           <a class="btn btn-ghost" href="${esc(SHOP.facebook)}" target="_blank" rel="noopener">Open Facebook</a>
           <div id="qrbox"><canvas id="qr"></canvas></div>
           <button class="btn btn-gold" id="qrDl" type="button">Download QR</button>
+          <h3>Change PIN</h3>
+          ${state.pinSaved ? `<p class="ok">PIN saved.</p>` : ""}
+          <label class="field">New PIN
+            <input class="pin" id="newPin" inputmode="numeric" maxlength="8" autocomplete="off" />
+          </label>
+          <label class="field">Type it again
+            <input class="pin" id="newPin2" inputmode="numeric" maxlength="8" autocomplete="off" />
+          </label>
+          <button class="btn btn-gold" id="pinSave" type="button">Save PIN</button>
+          <button class="btn btn-ghost" id="signOut" type="button">Sign out</button>
         </div>`;
     }
 
@@ -820,7 +819,7 @@
         state.error = "";
         state.pinSaved = false;
         render();
-        if (el.dataset.tab === "share") drawQr();
+        if (el.dataset.tab === "other") drawQr();
       }));
       document.getElementById("blockBtn")?.addEventListener("click", blockTime);
       document.querySelectorAll("[data-done]").forEach(el => el.addEventListener("click", () => setStatus(el.dataset.done, "done")));
@@ -837,7 +836,7 @@
       document.getElementById("copyBtn")?.addEventListener("click", copyLink);
       document.getElementById("shareBtn")?.addEventListener("click", nativeShare);
       document.getElementById("qrDl")?.addEventListener("click", downloadQr);
-      if (state.route === "owner" && state.ownerTab === "share") drawQr();
+      if (state.route === "owner" && state.ownerTab === "other") drawQr();
     }
 
     async function confirmBook() {
