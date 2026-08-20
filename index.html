@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Brassy Monkey Salon &amp; Barber Shop</title>
+  <meta name="description" content="Book with Misty Patterson at Brassy Monkey Salon & Barber Shop in Tecumseh, OK." />
+  <meta name="theme-color" content="#F3E6CF" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Brassy Monkey" />
+  <link rel="icon" href="logo-crop.jpg" />
+  <link rel="apple-touch-icon" href="logo-crop.jpg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Outfit:wght@400;500;600;700&family=Playball&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --cream: #F3E6CF;
+      --paper: #FAF3E6;
+      --ink: #14110E;
+      --muted: #5C5348;
+      --line: #D8C7A8;
+      --gold: #C4A052;
+      --gold-deep: #8A6A2A;
+      --red: #D3121C;
+      --red-deep: #8E0C14;
+      --ok: #2F6B3A;
+      --shadow: 0 10px 30px rgba(40, 24, 8, .12);
+      --radius: 18px;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      font-family: Outfit, system-ui, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 500px at 50% -10%, rgba(196,160,82,.22), transparent 55%),
+        repeating-linear-gradient(0deg, rgba(80,50,10,.018) 0 1px, transparent 1px 3px),
+        var(--cream);
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; }
+    button, input, select, textarea { font: inherit; }
+    .wrap {
+      width: min(560px, 100%);
+      margin: 0 auto;
+      padding: 18px 16px 48px;
+    }
+    header.brand { text-align: center; padding: 10px 0 6px; }
+    .logo-ring {
+      width: 168px;
+      height: 168px;
+      margin: 0 auto 10px;
+      border-radius: 50%;
+      padding: 6px;
+      background: conic-gradient(from 140deg, #E8D48A, #8A6A28, #F3E2A8, #8A6A28, #E8D48A);
+      box-shadow: var(--shadow);
+    }
+    .logo-ring img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: 50% 40%;
+      border-radius: 50%;
+      display: block;
+      background: var(--paper);
+    }
+    .wordmark {
+      font-family: Playball, cursive;
+      font-size: clamp(40px, 11vw, 56px);
+      line-height: .9;
+      margin: 4px 0 0;
+    }
+    .submark {
+      font-family: Oswald, sans-serif;
+      letter-spacing: .18em;
+      font-size: 13px;
+      margin: 8px 0 0;
+    }
+    .scissors { display: block; margin: 6px auto 0; opacity: .7; }
+    .card {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 18px;
+      margin: 14px 0;
+    }
+    .facts { display: grid; gap: 8px; text-align: center; color: var(--muted); font-size: 15px; }
+    .facts strong { color: var(--ink); display: block; }
+    .hours-list { margin: 8px 0 0; padding: 0; list-style: none; font-size: 14px; color: var(--muted); }
+    .hours-list li { display: flex; justify-content: space-between; padding: 4px 8px; }
+    .hours-list li + li { border-top: 1px dashed var(--line); }
+    .burst {
+      display: inline-block;
+      background: var(--red);
+      color: #fff;
+      font-weight: 700;
+      font-size: 13px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      margin: 8px 4px 0;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      min-height: 52px;
+      border: 0;
+      border-radius: 999px;
+      padding: 0 18px;
+      cursor: pointer;
+      text-decoration: none;
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .btn-red { background: var(--red); color: #fff; box-shadow: 0 4px 0 var(--red-deep); }
+    .btn-red:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 2px 0 var(--red-deep); }
+    .btn-gold { background: var(--gold); color: var(--ink); box-shadow: 0 4px 0 var(--gold-deep); }
+    .btn-ghost {
+      background: transparent;
+      color: var(--ink);
+      border: 1.5px solid var(--ink);
+      box-shadow: none;
+    }
+    .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .stack { display: grid; gap: 12px; }
+    h2 { font-family: Oswald, sans-serif; letter-spacing: .08em; font-size: 22px; margin: 0 0 10px; }
+    h3 { margin: 0 0 8px; font-size: 16px; }
+    .muted { color: var(--muted); }
+    .service {
+      width: 100%;
+      text-align: left;
+      background: #fff;
+      border: 1.5px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+      cursor: pointer;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+    }
+    .service:hover, .service.selected { border-color: var(--ink); }
+    .service small { color: var(--muted); }
+    .price { font-weight: 700; }
+    .chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip {
+      border: 1.5px solid var(--line);
+      background: #fff;
+      border-radius: 999px;
+      padding: 10px 12px;
+      cursor: pointer;
+      min-height: 44px;
+    }
+    .chip.selected, .slot.selected { background: var(--ink); color: #fff; border-color: var(--ink); }
+    .chip:disabled { opacity: .35; }
+    .slots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .slot {
+      border: 1.5px solid var(--line);
+      background: #fff;
+      border-radius: 12px;
+      min-height: 46px;
+      cursor: pointer;
+    }
+    label.field { display: grid; gap: 6px; font-size: 14px; font-weight: 600; }
+    input, select, textarea {
+      width: 100%;
+      min-height: 48px;
+      border: 1.5px solid var(--line);
+      border-radius: 12px;
+      padding: 10px 12px;
+      background: #fff;
+      color: var(--ink);
+    }
+    textarea { min-height: 90px; resize: vertical; }
+    .err { color: var(--red); font-size: 14px; }
+    .ok { color: var(--ok); }
+    .hidden { display: none !important; }
+    footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      padding: 18px 8px 8px;
+    }
+    footer a { text-decoration: underline; }
+    .tabs { display: flex; gap: 6px; overflow: auto; padding-bottom: 4px; }
+    .tab {
+      flex: 1;
+      min-width: max-content;
+      border: 0;
+      background: transparent;
+      border-bottom: 3px solid transparent;
+      padding: 10px 8px;
+      font-weight: 700;
+      color: var(--muted);
+    }
+    .tab.on { color: var(--ink); border-bottom-color: var(--red); }
+    .booking {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px;
+    }
+    .booking + .booking { margin-top: 10px; }
+    .tiny { font-size: 12px; }
+    .hour-row { display: grid; grid-template-columns: 92px 1fr 1fr auto; gap: 6px; align-items: center; margin-bottom: 8px; }
+    .hour-row input[type="time"] { min-height: 40px; }
+    .svc-edit { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: grid; gap: 8px; }
+    .svc-edit + .svc-edit { margin-top: 10px; }
+    #qrbox { display: flex; justify-content: center; padding: 8px; background: #fff; border-radius: 12px; }
+    .pin { letter-spacing: .4em; text-align: center; font-size: 28px; font-weight: 700; }
+    .confirm-box { text-align: center; }
+    .confirm-box .check {
+      width: 64px; height: 64px; margin: 0 auto 10px;
+      border-radius: 50%; background: var(--red); color: #fff;
+      display: grid; place-items: center; font-size: 32px;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --cream: #1B1610;
+        --paper: #261F16;
+        --ink: #F6EBD8;
+        --muted: #C3B49A;
+        --line: #4A3E2C;
+      }
+      .service, .chip, .slot, input, select, textarea, .booking, .svc-edit, #qrbox { background: #1F1912; color: var(--ink); }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="brand">
+      <div class="logo-ring"><img src="logo-crop.jpg" alt="Brassy Monkey logo" /></div>
+      <p class="wordmark">Brassy Monkey</p>
+      <p class="submark">SALON &amp; BARBER SHOP</p>
+      <svg class="scissors" width="22" height="14" viewBox="0 0 22 14" fill="none" aria-hidden="true">
+        <circle cx="4" cy="10" r="3" stroke="#14110E" stroke-width="1.4"/>
+        <circle cx="18" cy="10" r="3" stroke="#14110E" stroke-width="1.4"/>
+        <path d="M6.2 8.2 L11 2.2 L15.8 8.2" stroke="#14110E" stroke-width="1.4"/>
+      </svg>
+    </header>
+
+    <main id="app"></main>
+
+    <footer>
+      <div>1011 N Broadway, Suite 3 · Tecumseh, OK</div>
+      <div><a href="tel:+19187586486">918-758-6486</a> · <a href="https://www.facebook.com/profile.php?id=61591742622203" target="_blank" rel="noopener">Facebook</a></div>
+      <div style="margin-top:10px"><a href="#/owner">Owner</a></div>
+    </footer>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
+  <script>
+    const SHOP = {
+      name: "Brassy Monkey",
+      stylist: "Misty Patterson",
+      role: "Barber Stylist",
+      phone: "918-758-6486",
+      tel: "+19187586486",
+      address: "1011 N Broadway, Suite 3",
+      city: "Tecumseh, OK",
+      facebook: "https://www.facebook.com/profile.php?id=61591742622203",
+      tz: "America/Chicago"
+    };
+    const SB_URL = "https://kaopminkiwnjtednhmxq.supabase.co";
+    const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthb3BtaW5raXduanRlZG5obXhxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcxODYzNTgsImV4cCI6MjEwMjc2MjM1OH0.mIjPx1nIxVmbxKj6YX7_7rLNLJkzRWvdY6JKg8OiD-U";
+    const sb = supabase.createClient(SB_URL, SB_KEY);
+    const PIN_KEY = "bm-owner-pin";
+    const TZ = SHOP.tz;
+
+    const state = {
+      route: "home",
+      step: 1,
+      services: [],
+      hours: [],
+      slots: [],
+      service: null,
+      date: null,
+      time: null,
+      name: "",
+      phone: "",
+      note: "",
+      confirmation: null,
+      ownerTab: "bookings",
+      bookings: [],
+      error: "",
+      loading: false
+    };
+
+    function publicUrl() {
+      const u = new URL(location.href);
+      u.hash = "";
+      u.search = "";
+      return u.toString().replace(/index\.html$/, "");
+    }
+    function esc(s) {
+      return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    }
+    function errText(e) {
+      const m = e?.message || String(e || "Something went wrong");
+      return m.replace(/^.*ERROR:\s*/i, "").replace(/P0001:\s*/i, "").split("\n")[0];
+    }
+    function money(n) {
+      if (n == null || n === "") return "";
+      const v = Number(n);
+      return Number.isInteger(v) ? `$${v}` : `$${v.toFixed(2)}`;
+    }
+    function ymdInTz(date = new Date()) {
+      return new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
+    }
+    function zonedTimeToUtc(ymd, hm) {
+      const [y, m, d] = ymd.split("-").map(Number);
+      const [hh, mm] = String(hm).slice(0, 5).split(":").map(Number);
+      const target = Date.UTC(y, m - 1, d, hh, mm);
+      const fmt = new Intl.DateTimeFormat("en-US", {
+        timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit",
+        hour: "2-digit", minute: "2-digit", hourCycle: "h23"
+      });
+      const asUtc = (ms) => {
+        const p = Object.fromEntries(fmt.formatToParts(new Date(ms)).map(x => [x.type, x.value]));
+        return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute);
+      };
+      let guess = target;
+      for (let i = 0; i < 4; i++) guess += target - asUtc(guess);
+      return new Date(guess);
+    }
+    function weekdayInTz(ymd) {
+      const name = new Intl.DateTimeFormat("en-US", { timeZone: TZ, weekday: "short" }).format(zonedTimeToUtc(ymd, "12:00"));
+      return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(name);
+    }
+    function formatClock(date) {
+      return new Intl.DateTimeFormat("en-US", { timeZone: TZ, hour: "numeric", minute: "2-digit" }).format(date);
+    }
+    function formatDay(ymd) {
+      const dt = zonedTimeToUtc(ymd, "12:00");
+      return new Intl.DateTimeFormat("en-US", { timeZone: TZ, weekday: "short", month: "short", day: "numeric" }).format(dt);
+    }
+    function formatFull(date) {
+      return new Intl.DateTimeFormat("en-US", {
+        timeZone: TZ, weekday: "long", month: "long", day: "numeric", hour: "numeric", minute: "2-digit"
+      }).format(date);
+    }
+    function hmOf(date) {
+      const p = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
+        timeZone: TZ, hour: "2-digit", minute: "2-digit", hourCycle: "h23"
+      }).formatToParts(date).map(x => [x.type, x.value]));
+      return `${p.hour}:${p.minute}`;
+    }
+    function hoursFor(ymd) {
+      return state.hours.find(h => Number(h.dow) === weekdayInTz(ymd));
+    }
+    function prettyHours(h) {
+      if (!h) return "";
+      if (h.closed) return "Closed";
+      const a = formatClock(zonedTimeToUtc("2026-01-05", String(h.open_time).slice(0, 5)));
+      const b = formatClock(zonedTimeToUtc("2026-01-05", String(h.close_time).slice(0, 5)));
+      return `${a} – ${b}`;
+    }
+    function generateSlots(ymd, minutes, taken) {
+      const h = hoursFor(ymd);
+      if (!h || h.closed) return [];
+      const open = zonedTimeToUtc(ymd, h.open_time);
+      const close = zonedTimeToUtc(ymd, h.close_time);
+      const step = 15 * 60 * 1000;
+      const now = Date.now() + 5 * 60 * 1000;
+      const out = [];
+      for (let t = open.getTime(); t + minutes * 60000 <= close.getTime(); t += step) {
+        if (t < now) continue;
+        const end = t + minutes * 60000;
+        if (taken.some(r => t < r.end && end > r.start)) continue;
+        out.push(new Date(t));
+      }
+      return out;
+    }
+    function ownerPin() { return sessionStorage.getItem(PIN_KEY) || ""; }
+    function setHash(route) {
+      if (location.hash !== "#/" + route && location.hash !== "#" + route) {
+        location.hash = "#/" + route;
+      }
+    }
+
+    async function loadCatalog() {
+      const [{ data: services, error: e1 }, { data: hours, error: e2 }] = await Promise.all([
+        sb.from("services").select("*").order("sort"),
+        sb.from("shop_hours").select("*").order("dow")
+      ]);
+      if (e1) throw e1;
+      if (e2) throw e2;
+      state.services = services || [];
+      state.hours = hours || [];
+    }
+    async function loadTaken() {
+      const { data, error } = await sb.from("slots").select("start_at,end_at,status").in("status", ["booked", "blocked"]);
+      if (error) throw error;
+      state.slots = (data || []).map(s => ({ start: new Date(s.start_at).getTime(), end: new Date(s.end_at).getTime() }));
+    }
+
+    function routeFromHash() {
+      const h = (location.hash || "#/").replace(/^#\/?/, "");
+      if (h.startsWith("owner")) return "owner";
+      if (h.startsWith("book")) return "book";
+      if (h.startsWith("done")) return "done";
+      return "home";
+    }
+
+    function render() {
+      const root = document.getElementById("app");
+      state.route = routeFromHash();
+      if (state.route === "home") root.innerHTML = viewHome();
+      else if (state.route === "book") root.innerHTML = viewBook();
+      else if (state.route === "done") root.innerHTML = viewDone();
+      else if (state.route === "owner") root.innerHTML = ownerPin() ? viewOwner() : viewOwnerLogin();
+      bind();
+    }
+
+    function viewHome() {
+      const hours = [...state.hours].sort((a, b) => a.dow - b.dow);
+      return `
+        <section class="card stack">
+          <div class="facts">
+            <div><strong>${esc(SHOP.stylist)}</strong>${esc(SHOP.role)}</div>
+            <div>Serving men, women &amp; children · Full service salon</div>
+            <div>Appointments &amp; walk-ins welcome</div>
+          </div>
+          <div style="text-align:center">
+            <span class="burst">Hot Towel, Shave &amp; Hair Cut $40</span>
+          </div>
+          <a class="btn btn-red" href="#/book">Book an appointment</a>
+          <a class="btn btn-ghost" href="sms:${SHOP.tel}">Text the shop</a>
+        </section>
+        <section class="card">
+          <h2>Hours</h2>
+          <ul class="hours-list">
+            ${hours.map(h => `<li><span>${esc(h.name)}</span><span>${esc(prettyHours(h))}</span></li>`).join("")}
+          </ul>
+        </section>`;
+    }
+
+    function viewBook() {
+      const step = state.step;
+      const back = step === 1 ? "#/" : "";
+      return `
+        <section class="card stack">
+          <h2>Book</h2>
+          <p class="muted tiny">Step ${step} of 4</p>
+          ${state.error ? `<p class="err">${esc(state.error)}</p>` : ""}
+          ${step === 1 ? viewServices() : ""}
+          ${step === 2 ? viewDates() : ""}
+          ${step === 3 ? viewTimes() : ""}
+          ${step === 4 ? viewDetails() : ""}
+          <div class="btn-row">
+            <button class="btn btn-ghost" id="backBtn" type="button">${step === 1 ? "Home" : "Back"}</button>
+            ${step < 4 ? `<button class="btn btn-red" id="nextBtn" type="button" ${canNext() ? "" : "disabled"}>Next</button>` : `<button class="btn btn-red" id="bookBtn" type="button" ${state.loading ? "disabled" : ""}>${state.loading ? "Booking…" : "Confirm book"}</button>`}
+          </div>
+        </section>`;
+    }
+    function viewServices() {
+      return state.services.filter(s => s.active).map(s => `
+        <button class="service ${state.service?.id === s.id ? "selected" : ""}" data-service="${s.id}" type="button">
+          <div><strong>${esc(s.name)}</strong><br><small>${s.minutes} min</small></div>
+          <div class="price">${esc(money(s.price))}</div>
+        </button>`).join("");
+    }
+    function viewDates() {
+      const days = [];
+      const start = new Date();
+      for (let i = 0; i < 21; i++) {
+        const d = new Date(start.getTime() + i * 86400000);
+        const ymd = ymdInTz(d);
+        const h = hoursFor(ymd);
+        days.push({ ymd, label: formatDay(ymd), closed: !h || h.closed });
+      }
+      return `<div class="chip-row">${days.map(d => `
+        <button class="chip ${state.date === d.ymd ? "selected" : ""}" data-date="${d.ymd}" ${d.closed ? "disabled" : ""} type="button">
+          ${esc(d.label)}${d.closed ? " · Closed" : ""}
+        </button>`).join("")}</div>`;
+    }
+    function viewTimes() {
+      if (!state.service || !state.date) return `<p class="muted">Pick a service and date first.</p>`;
+      const times = generateSlots(state.date, state.service.minutes, state.slots);
+      if (!times.length) return `<p class="muted">No open times that day for a ${state.service.minutes}-minute visit. Try another day.</p>`;
+      return `<div class="slots">${times.map(t => `
+        <button class="slot ${state.time && +state.time === +t ? "selected" : ""}" data-time="${t.toISOString()}" type="button">${esc(formatClock(t))}</button>
+      `).join("")}</div>`;
+    }
+    function viewDetails() {
+      return `
+        <p class="muted">${esc(state.service?.name || "")} · ${state.time ? esc(formatFull(state.time)) : ""}</p>
+        <label class="field">Your name
+          <input id="name" autocomplete="name" value="${esc(state.name)}" />
+        </label>
+        <label class="field">Phone
+          <input id="phone" type="tel" inputmode="tel" autocomplete="tel" value="${esc(state.phone)}" placeholder="918-555-0100" />
+        </label>
+        <label class="field">Note <span class="muted">(optional)</span>
+          <textarea id="note">${esc(state.note)}</textarea>
+        </label>`;
+    }
+    function canNext() {
+      if (state.step === 1) return !!state.service;
+      if (state.step === 2) return !!state.date;
+      if (state.step === 3) return !!state.time;
+      return true;
+    }
+    function viewDone() {
+      const c = state.confirmation;
+      if (!c) return `<section class="card"><p>No booking on this screen.</p><a class="btn btn-red" href="#/">Home</a></section>`;
+      const start = new Date(c.start_at);
+      return `
+        <section class="card confirm-box stack">
+          <div class="check">✓</div>
+          <h2>You're on the books</h2>
+          <p><strong>${esc(c.service_name)}</strong><br>${esc(formatFull(start))}<br>with ${esc(SHOP.stylist)}</p>
+          <button class="btn btn-red" id="icsBtn" type="button">Add to calendar</button>
+          <a class="btn btn-ghost" href="sms:${SHOP.tel}">Text ${esc(SHOP.phone)}</a>
+          <a class="btn btn-ghost" href="#/">Done</a>
+        </section>`;
+    }
+    function viewOwnerLogin() {
+      return `
+        <section class="card stack">
+          <h2>Owner</h2>
+          <p class="muted">Last four of the shop number.</p>
+          ${state.error ? `<p class="err">${esc(state.error)}</p>` : ""}
+          <input class="pin" id="pin" inputmode="numeric" maxlength="4" autocomplete="off" />
+          <button class="btn btn-red" id="pinBtn" type="button">Open portal</button>
+        </section>`;
+    }
+    function viewOwner() {
+      const tab = state.ownerTab;
+      return `
+        <section class="card stack">
+          <h2>Owner portal</h2>
+          <div class="tabs">
+            <button class="tab ${tab === "bookings" ? "on" : ""}" data-tab="bookings" type="button">Bookings</button>
+            <button class="tab ${tab === "hours" ? "on" : ""}" data-tab="hours" type="button">Hours</button>
+            <button class="tab ${tab === "services" ? "on" : ""}" data-tab="services" type="button">Services</button>
+            <button class="tab ${tab === "share" ? "on" : ""}" data-tab="share" type="button">Share</button>
+          </div>
+          ${state.error ? `<p class="err">${esc(state.error)}</p>` : ""}
+          ${tab === "bookings" ? viewOwnerBookings() : ""}
+          ${tab === "hours" ? viewOwnerHours() : ""}
+          ${tab === "services" ? viewOwnerServices() : ""}
+          ${tab === "share" ? viewOwnerShare() : ""}
+          <button class="btn btn-ghost" id="signOut" type="button">Sign out</button>
+        </section>`;
+    }
+    function viewOwnerBookings() {
+      const upcoming = state.bookings.filter(b => new Date(b.end_at) >= Date.now() - 3600000);
+      const past = state.bookings.filter(b => new Date(b.end_at) < Date.now() - 3600000);
+      const block = `
+        <div class="stack">
+          <h3>Block time</h3>
+          <label class="field">Date <input type="date" id="blockDate" /></label>
+          <div class="btn-row">
+            <label class="field">Start <input type="time" id="blockStart" value="12:00" /></label>
+            <label class="field">End <input type="time" id="blockEnd" value="13:00" /></label>
+          </div>
+          <label class="field">Label <input id="blockLabel" placeholder="Lunch, running late…" /></label>
+          <button class="btn btn-gold" id="blockBtn" type="button">Block this time</button>
+        </div>`;
+      const list = (items) => items.length ? items.map(b => `
+        <article class="booking">
+          <strong>${esc(formatFull(new Date(b.start_at)))}</strong>
+          <div>${esc(b.service_name)} · ${b.minutes} min · ${esc(b.status)}</div>
+          <div>${esc(b.client_name)} · <a href="tel:${esc(b.phone)}">${esc(b.phone)}</a></div>
+          ${b.note ? `<div class="muted">${esc(b.note)}</div>` : ""}
+          ${b.status === "booked" ? `<div class="btn-row" style="margin-top:8px">
+            <button class="btn btn-gold" data-done="${b.id}" type="button">Done</button>
+            <button class="btn btn-ghost" data-cancel="${b.id}" type="button">Cancel</button>
+          </div>` : ""}
+        </article>`).join("") : `<p class="muted">None yet.</p>`;
+      return `${block}<h3>Upcoming</h3>${list(upcoming)}<h3>Past</h3>${list(past)}`;
+    }
+    function viewOwnerHours() {
+      return `<form id="hoursForm" class="stack">
+        ${state.hours.map(h => `
+          <div class="hour-row">
+            <strong>${esc(h.name)}</strong>
+            <input type="time" name="open-${h.dow}" value="${String(h.open_time).slice(0, 5)}" />
+            <input type="time" name="close-${h.dow}" value="${String(h.close_time).slice(0, 5)}" />
+            <label class="tiny"><input type="checkbox" name="closed-${h.dow}" ${h.closed ? "checked" : ""} /> Off</label>
+          </div>`).join("")}
+        <button class="btn btn-red" type="submit">Save hours</button>
+      </form>`;
+    }
+    function viewOwnerServices() {
+      return `
+        <div class="stack">
+          ${state.services.map(s => `
+            <form class="svc-edit" data-id="${s.id}">
+              <input name="name" value="${esc(s.name)}" />
+              <div class="btn-row">
+                <label class="field">Price <input name="price" type="number" min="0" step="0.01" value="${s.price ?? ""}" /></label>
+                <label class="field">Minutes <input name="minutes" type="number" min="5" step="5" value="${s.minutes}" /></label>
+              </div>
+              <label class="tiny"><input type="checkbox" name="active" ${s.active ? "checked" : ""} /> Clients can book this</label>
+              <div class="btn-row">
+                <button class="btn btn-red" type="submit">Save</button>
+                <button class="btn btn-ghost" data-del="${s.id}" type="button">Delete</button>
+              </div>
+            </form>`).join("")}
+          <form class="svc-edit" id="newSvc">
+            <h3>Add a service</h3>
+            <input name="name" placeholder="Service name" />
+            <div class="btn-row">
+              <label class="field">Price <input name="price" type="number" min="0" step="0.01" /></label>
+              <label class="field">Minutes <input name="minutes" type="number" min="5" step="5" value="45" /></label>
+            </div>
+            <button class="btn btn-gold" type="submit">Add service</button>
+          </form>
+        </div>`;
+    }
+    function viewOwnerShare() {
+      const url = publicUrl();
+      const sms = `sms:&body=${encodeURIComponent("Book at Brassy Monkey: " + url)}`;
+      return `
+        <div class="stack">
+          <p>This is the link to text, post, or print as a QR code.</p>
+          <input readonly value="${esc(url)}" id="shareUrl" />
+          <button class="btn btn-red" id="copyBtn" type="button">Copy link</button>
+          <a class="btn btn-ghost" href="${sms}">Text the link</a>
+          <button class="btn btn-ghost" id="shareBtn" type="button">Share…</button>
+          <a class="btn btn-ghost" href="${esc(SHOP.facebook)}" target="_blank" rel="noopener">Open Facebook</a>
+          <div id="qrbox"><canvas id="qr"></canvas></div>
+          <button class="btn btn-gold" id="qrDl" type="button">Download QR</button>
+        </div>`;
+    }
+
+    function bind() {
+      document.getElementById("backBtn")?.addEventListener("click", () => {
+        if (state.step === 1) location.hash = "#/";
+        else { state.step -= 1; state.error = ""; render(); }
+      });
+      document.getElementById("nextBtn")?.addEventListener("click", async () => {
+        if (!canNext()) return;
+        state.step += 1;
+        state.error = "";
+        if (state.step === 3) {
+          try { await loadTaken(); } catch (e) { state.error = errText(e); }
+        }
+        render();
+      });
+      document.querySelectorAll("[data-service]").forEach(el => el.addEventListener("click", () => {
+        state.service = state.services.find(s => s.id === el.dataset.service);
+        render();
+      }));
+      document.querySelectorAll("[data-date]").forEach(el => el.addEventListener("click", () => {
+        state.date = el.dataset.date;
+        state.time = null;
+        render();
+      }));
+      document.querySelectorAll("[data-time]").forEach(el => el.addEventListener("click", () => {
+        state.time = new Date(el.dataset.time);
+        render();
+      }));
+      document.getElementById("name")?.addEventListener("input", e => state.name = e.target.value);
+      document.getElementById("phone")?.addEventListener("input", e => state.phone = e.target.value);
+      document.getElementById("note")?.addEventListener("input", e => state.note = e.target.value);
+      document.getElementById("bookBtn")?.addEventListener("click", confirmBook);
+      document.getElementById("icsBtn")?.addEventListener("click", downloadIcs);
+      document.getElementById("pinBtn")?.addEventListener("click", ownerLogin);
+      document.getElementById("pin")?.addEventListener("keydown", e => { if (e.key === "Enter") ownerLogin(); });
+      document.getElementById("signOut")?.addEventListener("click", () => { sessionStorage.removeItem(PIN_KEY); render(); });
+      document.querySelectorAll("[data-tab]").forEach(el => el.addEventListener("click", () => {
+        state.ownerTab = el.dataset.tab;
+        state.error = "";
+        render();
+        if (el.dataset.tab === "share") drawQr();
+      }));
+      document.getElementById("blockBtn")?.addEventListener("click", blockTime);
+      document.querySelectorAll("[data-done]").forEach(el => el.addEventListener("click", () => setStatus(el.dataset.done, "done")));
+      document.querySelectorAll("[data-cancel]").forEach(el => el.addEventListener("click", () => setStatus(el.dataset.cancel, "cancelled")));
+      document.getElementById("hoursForm")?.addEventListener("submit", saveHours);
+      document.querySelectorAll("form.svc-edit[data-id]").forEach(form => form.addEventListener("submit", e => saveService(e, form)));
+      document.getElementById("newSvc")?.addEventListener("submit", addService);
+      document.querySelectorAll("[data-del]").forEach(el => el.addEventListener("click", () => deleteService(el.dataset.del)));
+      document.getElementById("copyBtn")?.addEventListener("click", copyLink);
+      document.getElementById("shareBtn")?.addEventListener("click", nativeShare);
+      document.getElementById("qrDl")?.addEventListener("click", downloadQr);
+      if (state.route === "owner" && state.ownerTab === "share") drawQr();
+    }
+
+    async function confirmBook() {
+      state.error = "";
+      state.loading = true;
+      render();
+      try {
+        const { data, error } = await sb.rpc("create_booking", {
+          p_service_id: state.service.id,
+          p_start: state.time.toISOString(),
+          p_name: state.name,
+          p_phone: state.phone,
+          p_note: state.note || null
+        });
+        if (error) throw error;
+        state.confirmation = data;
+        state.loading = false;
+        location.hash = "#/done";
+      } catch (e) {
+        state.loading = false;
+        state.error = errText(e);
+        render();
+      }
+    }
+    function stampLocal(date) {
+      const p = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
+        timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit",
+        hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23"
+      }).formatToParts(date).map(x => [x.type, x.value]));
+      return `${p.year}${p.month}${p.day}T${p.hour}${p.minute}${p.second}`;
+    }
+    function downloadIcs() {
+      const c = state.confirmation;
+      if (!c) return;
+      const ics = [
+        "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Brassy Monkey//Booking//EN", "CALSCALE:GREGORIAN",
+        "BEGIN:VEVENT",
+        `DTSTART;TZID=America/Chicago:${stampLocal(new Date(c.start_at))}`,
+        `DTEND;TZID=America/Chicago:${stampLocal(new Date(c.end_at))}`,
+        `SUMMARY:Brassy Monkey — ${c.service_name}`,
+        `DESCRIPTION:With ${SHOP.stylist}`,
+        `LOCATION:${SHOP.address}\\, ${SHOP.city}`,
+        "END:VEVENT", "END:VCALENDAR"
+      ].join("\r\n");
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([ics], { type: "text/calendar" }));
+      a.download = "brassy-monkey.ics";
+      a.click();
+    }
+    async function ownerLogin() {
+      const pin = (document.getElementById("pin")?.value || "").trim();
+      state.error = "";
+      const { data, error } = await sb.rpc("owner_check_pin", { pin });
+      if (error || !data) { state.error = "That PIN did not work."; render(); return; }
+      sessionStorage.setItem(PIN_KEY, pin);
+      await refreshOwner();
+      render();
+    }
+    async function refreshOwner() {
+      const pin = ownerPin();
+      const [{ data, error }, cat] = await Promise.all([
+        sb.rpc("owner_list_bookings", { pin }),
+        loadCatalog()
+      ]);
+      if (error) throw error;
+      state.bookings = data || [];
+    }
+    async function setStatus(id, status) {
+      state.error = "";
+      const { error } = await sb.rpc("owner_set_booking_status", { pin: ownerPin(), p_id: id, p_status: status });
+      if (error) { state.error = errText(error); render(); return; }
+      await refreshOwner();
+      render();
+    }
+    async function blockTime() {
+      const date = document.getElementById("blockDate").value;
+      const start = document.getElementById("blockStart").value;
+      const end = document.getElementById("blockEnd").value;
+      const label = document.getElementById("blockLabel").value;
+      if (!date || !start || !end) { state.error = "Pick a date and times."; render(); return; }
+      const { error } = await sb.rpc("owner_block_time", {
+        pin: ownerPin(),
+        p_start: zonedTimeToUtc(date, start).toISOString(),
+        p_end: zonedTimeToUtc(date, end).toISOString(),
+        p_label: label || "Blocked"
+      });
+      if (error) { state.error = errText(error); render(); return; }
+      await refreshOwner();
+      render();
+    }
+    async function saveHours(e) {
+      e.preventDefault();
+      const form = e.target;
+      const hours = state.hours.map(h => ({
+        dow: h.dow,
+        name: h.name,
+        closed: form[`closed-${h.dow}`].checked,
+        open_time: form[`open-${h.dow}`].value,
+        close_time: form[`close-${h.dow}`].value
+      }));
+      const { error } = await sb.rpc("owner_save_hours", { pin: ownerPin(), p_hours: hours });
+      if (error) { state.error = errText(error); render(); return; }
+      await loadCatalog();
+      render();
+    }
+    async function saveService(e, form) {
+      e.preventDefault();
+      const { error } = await sb.rpc("owner_save_service", {
+        pin: ownerPin(),
+        p_id: form.dataset.id,
+        p_name: form.name.value,
+        p_price: form.price.value === "" ? null : Number(form.price.value),
+        p_minutes: Number(form.minutes.value),
+        p_active: form.active.checked,
+        p_sort: state.services.find(s => s.id === form.dataset.id)?.sort ?? 0
+      });
+      if (error) { state.error = errText(error); render(); return; }
+      await loadCatalog();
+      render();
+    }
+    async function addService(e) {
+      e.preventDefault();
+      const form = e.target;
+      const { error } = await sb.rpc("owner_save_service", {
+        pin: ownerPin(),
+        p_id: null,
+        p_name: form.name.value,
+        p_price: form.price.value === "" ? null : Number(form.price.value),
+        p_minutes: Number(form.minutes.value || 45),
+        p_active: true,
+        p_sort: (state.services.at(-1)?.sort || 0) + 1
+      });
+      if (error) { state.error = errText(error); render(); return; }
+      await loadCatalog();
+      render();
+    }
+    async function deleteService(id) {
+      if (!confirm("Delete this service?")) return;
+      const { error } = await sb.rpc("owner_delete_service", { pin: ownerPin(), p_id: id });
+      if (error) { state.error = errText(error); render(); return; }
+      await loadCatalog();
+      render();
+    }
+    async function copyLink() {
+      try {
+        await navigator.clipboard.writeText(publicUrl());
+        document.getElementById("copyBtn").textContent = "Copied";
+      } catch {
+        document.getElementById("shareUrl").select();
+      }
+    }
+    async function nativeShare() {
+      const url = publicUrl();
+      if (navigator.share) {
+        try { await navigator.share({ title: "Brassy Monkey", text: "Book at Brassy Monkey Salon", url }); } catch {}
+      } else {
+        copyLink();
+      }
+    }
+    function drawQr() {
+      const canvas = document.getElementById("qr");
+      if (!canvas || !window.QRCode) return;
+      QRCode.toCanvas(canvas, publicUrl(), { width: 220, margin: 1, color: { dark: "#14110E", light: "#FFFFFF" } });
+    }
+    function downloadQr() {
+      const canvas = document.getElementById("qr");
+      if (!canvas) return;
+      const a = document.createElement("a");
+      a.href = canvas.toDataURL("image/png");
+      a.download = "brassy-monkey-qr.png";
+      a.click();
+    }
+
+    async function boot() {
+      try {
+        await loadCatalog();
+        if (routeFromHash() === "owner" && ownerPin()) {
+          try { await refreshOwner(); } catch (e) { sessionStorage.removeItem(PIN_KEY); state.error = errText(e); }
+        }
+      } catch (e) {
+        state.error = errText(e);
+      }
+      render();
+    }
+    window.addEventListener("hashchange", async () => {
+      state.error = "";
+      if (routeFromHash() === "book" && state.step === 1 && !state.service) state.step = 1;
+      if (routeFromHash() === "owner" && ownerPin()) {
+        try { await refreshOwner(); } catch (e) { state.error = errText(e); }
+      }
+      render();
+    });
+    boot();
+  </script>
+</body>
+</html>
