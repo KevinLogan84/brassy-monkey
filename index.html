@@ -689,8 +689,9 @@
       if (!state.bookCal) state.bookCal = monthStart(ymdInTz());
       const minutes = state.service.minutes;
       const today = ymdInTz();
+      const horizon = addMonthsYmd(today, 3);
       const thisMonth = monthStart(today);
-      const lastMonth = shiftMonth(thisMonth, 2);
+      const lastMonth = monthStart(horizon);
       const [y, m] = state.bookCal.split("-").map(Number);
       const first = new Date(Date.UTC(y, m - 1, 1));
       const startPad = first.getUTCDay();
@@ -700,7 +701,7 @@
       for (let i = 0; i < startPad; i++) cells.push(`<div></div>`);
       for (let day = 1; day <= daysIn; day++) {
         const ymd = `${y}-${String(m).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-        const open = ymd >= today && generateSlots(ymd, minutes, state.slots).length > 0;
+        const open = ymd >= today && ymd <= horizon && generateSlots(ymd, minutes, state.slots).length > 0;
         cells.push(`<button class="cal-day ${ymd === today ? "today" : ""} ${state.date === ymd ? "on" : ""}" data-date="${ymd}" ${open ? "" : "disabled"} type="button">
           ${day}${open ? `<span class="cal-dot"></span>` : ""}
         </button>`);
@@ -821,6 +822,12 @@
     }
     function monthStart(ymd) {
       return ymd.slice(0, 8) + "01";
+    }
+    function addMonthsYmd(ymd, months) {
+      const [y, m, d] = ymd.split("-").map(Number);
+      const last = new Date(Date.UTC(y, m - 1 + months + 1, 0)).getUTCDate();
+      const dt = new Date(Date.UTC(y, m - 1 + months, Math.min(d, last)));
+      return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, "0")}-${String(dt.getUTCDate()).padStart(2, "0")}`;
     }
     function shiftMonth(cursor, delta) {
       const [y, m] = cursor.split("-").map(Number);
