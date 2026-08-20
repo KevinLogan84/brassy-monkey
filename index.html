@@ -387,6 +387,15 @@
       letter-spacing: .02em;
       color: var(--red);
     }
+    .owner-out {
+      position: sticky;
+      bottom: 0;
+      z-index: 3;
+      margin: 8px -16px -18px;
+      padding: 12px 16px 10px;
+      background: linear-gradient(180deg, rgba(255,248,236,0), var(--paper) 26%);
+      border-top: .5px solid var(--line);
+    }
     .sheet-bg {
       position: fixed;
       inset: 0;
@@ -405,6 +414,8 @@
     }
     .sheet h2 { font-size: 22px; margin-bottom: 8px; }
     .sheet p { margin: 0 0 12px; color: var(--muted); line-height: 1.45; }
+    .sheet-bg.center { place-items: center; }
+    .sheet.saved { text-align: center; }
     @media (prefers-color-scheme: dark) {
       :root, html, body {
         color-scheme: only light;
@@ -477,7 +488,8 @@
       error: "",
       loading: false,
       showDepositModal: false,
-      depositAccepted: false
+      depositAccepted: false,
+      savedNote: ""
     };
 
     function publicUrl() {
@@ -497,6 +509,15 @@
       if (n == null || n === "") return "";
       const v = Number(n);
       return Number.isInteger(v) ? `$${v}` : `$${v.toFixed(2)}`;
+    }
+    function depositCopy(s) {
+      const m = money(s?.deposit_amount);
+      return m ? `${m} deposit` : "deposit";
+    }
+    function depositFromForm(form) {
+      if (!form.requires_deposit.checked) return null;
+      const raw = form.deposit_amount.value;
+      return raw === "" ? null : Number(raw);
     }
     function ymdInTz(date = new Date()) {
       return new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
@@ -657,7 +678,7 @@
     function viewServices() {
       return state.services.filter(s => s.active).map(s => `
         <button class="service ${state.service?.id === s.id ? "selected" : ""}" data-service="${s.id}" type="button">
-          <div><strong>${esc(s.name)}</strong><br><small>${s.minutes} min</small>${s.requires_deposit ? `<div class="badge">Non-refundable deposit</div>` : ""}</div>
+          <div><strong>${esc(s.name)}</strong><br><small>${s.minutes} min</small>${s.requires_deposit ? `<div class="badge">Non-refundable deposit ${esc(money(s.deposit_amount))}</div>` : ""}</div>
           <div class="price">${esc(money(s.price))}</div>
         </button>`).join("");
     }
@@ -688,7 +709,7 @@
     function viewDetails() {
       return `
         <p class="muted">${esc(state.service?.name || "")} · ${state.time ? esc(formatFull(state.time)) : ""}</p>
-        ${state.service?.requires_deposit ? `<p class="badge">This service requires a non-refundable deposit.</p>` : ""}
+        ${state.service?.requires_deposit ? `<p class="badge">This service requires a non-refundable ${esc(money(state.service.deposit_amount))} deposit.</p>` : ""}
         <label class="field">Your name
           <input id="name" autocomplete="name" value="${esc(state.name)}" />
         </label>
@@ -724,12 +745,27 @@
         <div class="sheet-bg" id="depositSheet">
           <div class="sheet stack">
             <h2>Non-refundable deposit</h2>
-            <p><strong>${esc(state.service?.name || "This service")}</strong> requires a deposit to hold your time with ${esc(SHOP.stylist)}.</p>
-            <p>Once the deposit is paid and this appointment is scheduled, it is <strong>non-refundable</strong>. Payment will be collected in a later step.</p>
+            <p><strong>${esc(state.service?.name || "This service")}</strong> requires a ${esc(depositCopy(state.service))} to hold your time with ${esc(SHOP.stylist)}.</p>
+            <p>Once the ${esc(depositCopy(state.service))} is paid and this appointment is scheduled, it is <strong>non-refundable</strong>. Payment will be collected in a later step.</p>
             <button class="btn btn-red" id="depositOk" type="button">I understand</button>
             <button class="btn btn-ghost" id="depositCancel" type="button">Not now</button>
           </div>
         </div>`;
+    }
+    function viewSavedModal() {
+      return `
+        <div class="sheet-bg center" id="savedSheet">
+          <div class="sheet saved stack">
+            <h2>Saved</h2>
+            <p>${esc(state.savedNote)}</p>
+            <button class="btn btn-red" id="savedOk" type="button">OK</button>
+          </div>
+        </div>`;
+    }
+    function showSaved(note) {
+      state.error = "";
+      state.savedNote = note;
+      render();
     }
     function viewOwnerLogin() {
       return `
@@ -756,7 +792,11 @@
           ${tab === "hours" ? viewOwnerHours() : ""}
           ${tab === "services" ? viewOwnerServices() : ""}
           ${tab === "other" ? viewOwnerOther() : ""}
-        </section>`;
+          <div class="owner-out">
+            <button class="btn btn-ghost" id="signOut" type="button">Sign out</button>
+          </div>
+        </section>
+        ${state.savedNote ? viewSavedModal() : ""}`;
     }
     function monthStart(ymd) {
       return ymd.slice(0, 8) + "01";
@@ -874,7 +914,10 @@
                 <label class="field">Minutes <input name="minutes" type="number" min="5" step="5" value="${s.minutes}" /></label>
               </div>
               <label class="open-check"><input type="checkbox" name="active" ${s.active ? "checked" : ""} /> Clients can book this</label>
-              <label class="open-check"><input type="checkbox" name="requires_deposit" ${s.requires_deposit ? "checked" : ""} /> Requires Non-refundable Deposit</label>
+              <label class="open-check"><input type="checkbox" name="requires_deposit" ${s.requires_deposit ? "checked" : ""} data-deposit-toggle /> Requires Non-refundable Deposit</label>
+              <label class="field deposit-amt ${s.requires_deposit ? "" : "hidden"}">Deposit amount
+                <input name="deposit_amount" type="number" min="1" step="0.01" inputmode="decimal" value="${s.deposit_amount ?? ""}" ${s.requires_deposit ? "" : "disabled"} />
+              </label>
               <div class="btn-row">
                 <button class="btn btn-red" type="submit">Save</button>
                 <button class="btn btn-ghost" data-del="${s.id}" type="button">Delete</button>
@@ -887,7 +930,10 @@
               <label class="field">Price <input name="price" type="number" min="0" step="0.01" /></label>
               <label class="field">Minutes <input name="minutes" type="number" min="5" step="5" value="45" /></label>
             </div>
-            <label class="open-check"><input type="checkbox" name="requires_deposit" /> Requires Non-refundable Deposit</label>
+            <label class="open-check"><input type="checkbox" name="requires_deposit" data-deposit-toggle /> Requires Non-refundable Deposit</label>
+            <label class="field deposit-amt hidden">Deposit amount
+              <input name="deposit_amount" type="number" min="1" step="0.01" inputmode="decimal" disabled />
+            </label>
             <button class="btn btn-gold" type="submit">Add service</button>
           </form>
         </div>`;
@@ -907,7 +953,6 @@
           <div id="qrbox"><canvas id="qr"></canvas></div>
           <button class="btn btn-gold" id="qrDl" type="button">Download QR</button>
           <h3>Change PIN</h3>
-          ${state.pinSaved ? `<p class="ok">PIN saved.</p>` : ""}
           <label class="field">New PIN
             <input class="pin" id="newPin" inputmode="numeric" maxlength="8" autocomplete="off" />
           </label>
@@ -915,7 +960,6 @@
             <input class="pin" id="newPin2" inputmode="numeric" maxlength="8" autocomplete="off" />
           </label>
           <button class="btn btn-gold" id="pinSave" type="button">Save PIN</button>
-          <button class="btn btn-ghost" id="signOut" type="button">Sign out</button>
         </div>`;
     }
 
@@ -971,7 +1015,20 @@
       document.getElementById("icsBtn")?.addEventListener("click", downloadIcs);
       document.getElementById("pinBtn")?.addEventListener("click", ownerLogin);
       document.getElementById("pin")?.addEventListener("keydown", e => { if (e.key === "Enter") ownerLogin(); });
-      document.getElementById("signOut")?.addEventListener("click", () => { sessionStorage.removeItem(PIN_KEY); render(); });
+      document.getElementById("signOut")?.addEventListener("click", () => { sessionStorage.removeItem(PIN_KEY); state.savedNote = ""; render(); });
+      const dismissSaved = () => { state.savedNote = ""; render(); };
+      document.getElementById("savedOk")?.addEventListener("click", dismissSaved);
+      document.getElementById("savedSheet")?.addEventListener("click", e => {
+        if (e.target.id === "savedSheet") dismissSaved();
+      });
+      document.querySelectorAll("[data-deposit-toggle]").forEach(el => el.addEventListener("change", () => {
+        const form = el.closest("form");
+        const field = form.querySelector(".deposit-amt");
+        const input = form.deposit_amount;
+        field.classList.toggle("hidden", !el.checked);
+        input.disabled = !el.checked;
+        if (el.checked) input.focus();
+      }));
       document.getElementById("pinSave")?.addEventListener("click", changePin);
       document.querySelectorAll("[data-tab]").forEach(el => el.addEventListener("click", () => {
         state.ownerTab = el.dataset.tab;
@@ -1113,8 +1170,7 @@
       const { error } = await sb.rpc("owner_change_pin", { pin: ownerPin(), new_pin: next });
       if (error) { state.error = errText(error); render(); return; }
       sessionStorage.setItem(PIN_KEY, next);
-      state.pinSaved = true;
-      render();
+      showSaved("Your PIN is saved.");
     }
     async function refreshOwner() {
       const pin = ownerPin();
@@ -1130,7 +1186,7 @@
       const { error } = await sb.rpc("owner_set_booking_status", { pin: ownerPin(), p_id: id, p_status: status });
       if (error) { state.error = errText(error); render(); return; }
       await refreshOwner();
-      render();
+      showSaved(status === "done" ? "Appointment marked done." : "Appointment cancelled.");
     }
     async function blockTime() {
       const date = document.getElementById("blockDate").value;
@@ -1146,7 +1202,7 @@
       });
       if (error) { state.error = errText(error); render(); return; }
       await refreshOwner();
-      render();
+      showSaved("That time is blocked.");
     }
     async function saveHours(e) {
       e.preventDefault();
@@ -1161,7 +1217,7 @@
       const { error } = await sb.rpc("owner_save_hours", { pin: ownerPin(), p_hours: hours });
       if (error) { state.error = errText(error); render(); return; }
       await loadCatalog();
-      render();
+      showSaved("Your hours are saved.");
     }
     async function saveService(e, form) {
       e.preventDefault();
@@ -1173,11 +1229,12 @@
         p_minutes: Number(form.minutes.value),
         p_active: form.active.checked,
         p_requires_deposit: form.requires_deposit.checked,
+        p_deposit_amount: depositFromForm(form),
         p_sort: state.services.find(s => s.id === form.dataset.id)?.sort ?? 0
       });
       if (error) { state.error = errText(error); render(); return; }
       await loadCatalog();
-      render();
+      showSaved("This service is saved.");
     }
     async function addService(e) {
       e.preventDefault();
@@ -1190,18 +1247,19 @@
         p_minutes: Number(form.minutes.value || 45),
         p_active: true,
         p_requires_deposit: form.requires_deposit.checked,
+        p_deposit_amount: depositFromForm(form),
         p_sort: (state.services.at(-1)?.sort || 0) + 1
       });
       if (error) { state.error = errText(error); render(); return; }
       await loadCatalog();
-      render();
+      showSaved("Service added.");
     }
     async function deleteService(id) {
       if (!confirm("Delete this service?")) return;
       const { error } = await sb.rpc("owner_delete_service", { pin: ownerPin(), p_id: id });
       if (error) { state.error = errText(error); render(); return; }
       await loadCatalog();
-      render();
+      showSaved("Service deleted.");
     }
     async function copyLink() {
       try {
