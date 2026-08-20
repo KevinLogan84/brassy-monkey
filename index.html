@@ -61,22 +61,22 @@
     }
     header.brand { text-align: center; padding: 4px 0 2px; }
     .logo-ring {
-      width: min(148px, 38vw);
-      height: min(148px, 38vw);
+      width: min(200px, 54vw);
+      height: min(200px, 54vw);
       margin: 0 auto 8px;
       border-radius: 50%;
-      padding: 5px;
+      padding: 4px;
       background: conic-gradient(from 140deg, #E8D48A, #8A6A28, #F3E2A8, #8A6A28, #E8D48A);
       box-shadow: var(--shadow);
     }
     .logo-ring img {
       width: 100%;
       height: 100%;
-      object-fit: cover;
-      object-position: 50% 40%;
+      object-fit: contain;
+      object-position: center;
       border-radius: 50%;
       display: block;
-      background: var(--paper);
+      background: var(--cream);
     }
     .wordmark {
       font-family: Playball, Palatino, serif;
@@ -222,7 +222,7 @@
       font-weight: 590;
     }
     label.field { display: grid; gap: 6px; font-size: 13px; font-weight: 600; color: var(--muted); }
-    input, select, textarea {
+    input:not([type="checkbox"]):not([type="radio"]), select, textarea {
       width: 100%;
       min-height: 48px;
       border: 0;
@@ -236,6 +236,43 @@
       appearance: none;
     }
     input[type="date"], input[type="time"], input[type="number"] { min-height: 48px; }
+    .open-check {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 44px;
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--ink);
+    }
+    .open-check input {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 26px;
+      height: 26px;
+      min-height: 26px;
+      margin: 0;
+      padding: 0;
+      flex: none;
+      border-radius: 8px;
+      background: var(--fill);
+      box-shadow: inset 0 0 0 1.5px var(--line);
+      display: grid;
+      place-items: center;
+    }
+    .open-check input:checked {
+      background: var(--red);
+      box-shadow: none;
+    }
+    .open-check input:checked::after {
+      content: "";
+      width: 7px;
+      height: 12px;
+      border: solid #fff;
+      border-width: 0 2.5px 2.5px 0;
+      transform: rotate(45deg) translate(-1px, -1px);
+    }
+    .hour-row.is-closed .hour-times { opacity: .35; pointer-events: none; }
     textarea { min-height: 96px; resize: vertical; }
     .err { color: var(--red); font-size: 15px; margin: 0; }
     .ok { color: var(--ok); }
@@ -682,10 +719,13 @@
     function viewOwnerHours() {
       return `<form id="hoursForm" class="stack">
         ${state.hours.map(h => `
-          <div class="hour-row">
+          <div class="hour-row ${h.closed ? "is-closed" : ""}">
             <div class="hour-top">
               <strong>${esc(h.name)}</strong>
-              <label class="tiny"><input type="checkbox" name="closed-${h.dow}" ${h.closed ? "checked" : ""} /> Closed</label>
+              <label class="open-check">
+                <input type="checkbox" name="isopen-${h.dow}" ${h.closed ? "" : "checked"} data-open-day />
+                <span class="check-label">${h.closed ? "Closed" : "Open"}</span>
+              </label>
             </div>
             <div class="hour-times">
               <input type="time" name="open-${h.dow}" value="${String(h.open_time).slice(0, 5)}" />
@@ -706,7 +746,7 @@
                 <label class="field">Price <input name="price" type="number" min="0" step="0.01" value="${s.price ?? ""}" /></label>
                 <label class="field">Minutes <input name="minutes" type="number" min="5" step="5" value="${s.minutes}" /></label>
               </div>
-              <label class="tiny"><input type="checkbox" name="active" ${s.active ? "checked" : ""} /> Clients can book this</label>
+              <label class="open-check"><input type="checkbox" name="active" ${s.active ? "checked" : ""} /> Clients can book this</label>
               <div class="btn-row">
                 <button class="btn btn-red" type="submit">Save</button>
                 <button class="btn btn-ghost" data-del="${s.id}" type="button">Delete</button>
@@ -786,6 +826,11 @@
       document.querySelectorAll("[data-done]").forEach(el => el.addEventListener("click", () => setStatus(el.dataset.done, "done")));
       document.querySelectorAll("[data-cancel]").forEach(el => el.addEventListener("click", () => setStatus(el.dataset.cancel, "cancelled")));
       document.getElementById("hoursForm")?.addEventListener("submit", saveHours);
+      document.querySelectorAll("[data-open-day]").forEach(el => el.addEventListener("change", () => {
+        const row = el.closest(".hour-row");
+        row.classList.toggle("is-closed", !el.checked);
+        row.querySelector(".check-label").textContent = el.checked ? "Open" : "Closed";
+      }));
       document.querySelectorAll("form.svc-edit[data-id]").forEach(form => form.addEventListener("submit", e => saveService(e, form)));
       document.getElementById("newSvc")?.addEventListener("submit", addService);
       document.querySelectorAll("[data-del]").forEach(el => el.addEventListener("click", () => deleteService(el.dataset.del)));
@@ -900,7 +945,7 @@
       const hours = state.hours.map(h => ({
         dow: h.dow,
         name: h.name,
-        closed: form[`closed-${h.dow}`].checked,
+        closed: !form[`isopen-${h.dow}`].checked,
         open_time: form[`open-${h.dow}`].value,
         close_time: form[`close-${h.dow}`].value
       }));
