@@ -313,6 +313,42 @@
       box-shadow: inset 0 0 0 1px var(--line);
     }
     .booking + .booking { margin-top: 10px; }
+    .cal-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .cal-head strong { font-size: 17px; }
+    .cal-nav {
+      width: 40px; min-height: 40px; border: 0; border-radius: 10px;
+      background: var(--fill); box-shadow: inset 0 0 0 1px var(--line); font-size: 18px;
+      -webkit-appearance: none; appearance: none;
+    }
+    .cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+    }
+    .cal-dow { text-align: center; font-size: 11px; font-weight: 600; color: var(--muted); padding: 4px 0; }
+    .cal-day {
+      min-height: 48px;
+      border: 0;
+      border-radius: 10px;
+      background: var(--fill);
+      box-shadow: inset 0 0 0 1px var(--line);
+      padding: 4px 2px 6px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      font-size: 14px;
+      font-weight: 600;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    .cal-day.out { opacity: .28; }
+    .cal-day.today { box-shadow: inset 0 0 0 1.5px var(--gold); }
+    .cal-day.on { background: var(--ink); color: #fff; box-shadow: none; }
+    .cal-dot {
+      width: 6px; height: 6px; border-radius: 50%; background: var(--red);
+    }
+    .cal-day.on .cal-dot { background: #fff; }
     .tiny { font-size: 13px; }
     .hour-row {
       display: grid;
@@ -409,6 +445,9 @@
       confirmation: null,
       ownerTab: "bookings",
       bookings: [],
+      bookView: "list",
+      calCursor: null,
+      calDay: null,
       error: "",
       loading: false
     };
@@ -677,21 +716,19 @@
           ${tab === "other" ? viewOwnerOther() : ""}
         </section>`;
     }
-    function viewOwnerBookings() {
-      const upcoming = state.bookings.filter(b => new Date(b.end_at) >= Date.now() - 3600000);
-      const past = state.bookings.filter(b => new Date(b.end_at) < Date.now() - 3600000);
-      const block = `
-        <div class="stack">
-          <h3>Block time</h3>
-          <label class="field">Date <input type="date" id="blockDate" /></label>
-          <div class="btn-row">
-            <label class="field">Start <input type="time" id="blockStart" value="12:00" /></label>
-            <label class="field">End <input type="time" id="blockEnd" value="13:00" /></label>
-          </div>
-          <label class="field">Label <input id="blockLabel" placeholder="Lunch, running late…" /></label>
-          <button class="btn btn-gold" id="blockBtn" type="button">Block this time</button>
-        </div>`;
-      const list = (items) => items.length ? items.map(b => `
+    function monthStart(ymd) {
+      return ymd.slice(0, 8) + "01";
+    }
+    function shiftMonth(cursor, delta) {
+      const [y, m] = cursor.split("-").map(Number);
+      const d = new Date(Date.UTC(y, m - 1 + delta, 1));
+      return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-01`;
+    }
+    function bookingsOn(ymd) {
+      return state.bookings.filter(b => ymdInTz(new Date(b.start_at)) === ymd);
+    }
+    function bookingCard(b) {
+      return `
         <article class="booking">
           <strong>${esc(formatFull(new Date(b.start_at)))}</strong>
           <div>${esc(b.service_name)} · ${b.minutes} min · ${esc(b.status)}</div>
@@ -701,8 +738,68 @@
             <button class="btn btn-gold" data-done="${b.id}" type="button">Done</button>
             <button class="btn btn-ghost" data-cancel="${b.id}" type="button">Cancel</button>
           </div>` : ""}
-        </article>`).join("") : `<p class="muted">None yet.</p>`;
-      return `${block}<h3>Upcoming</h3>${list(upcoming)}<h3>Past</h3>${list(past)}`;
+        </article>`;
+    }
+    function viewOwnerCalendar() {
+      if (!state.calCursor) state.calCursor = monthStart(ymdInTz());
+      const today = ymdInTz();
+      const [y, m] = state.calCursor.split("-").map(Number);
+      const first = new Date(Date.UTC(y, m - 1, 1));
+      const startPad = first.getUTCDay();
+      const daysIn = new Date(Date.UTC(y, m, 0)).getUTCDate();
+      const title = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "UTC" }).format(first);
+      const cells = [];
+      for (let i = 0; i < startPad; i++) cells.push(`<div></div>`);
+      for (let day = 1; day <= daysIn; day++) {
+        const ymd = `${y}-${String(m).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+        const count = bookingsOn(ymd).length;
+        const on = state.calDay === ymd;
+        cells.push(`<button class="cal-day ${ymd === today ? "today" : ""} ${on ? "on" : ""}" data-cal-day="${ymd}" type="button">
+          ${day}${count ? `<span class="cal-dot"></span>` : ""}
+        </button>`);
+      }
+      const selected = state.calDay ? bookingsOn(state.calDay) : [];
+      return `
+        <div class="stack">
+          <div class="cal-head">
+            <button class="cal-nav" id="calPrev" type="button" aria-label="Previous month">‹</button>
+            <strong>${esc(title)}</strong>
+            <button class="cal-nav" id="calNext" type="button" aria-label="Next month">›</button>
+          </div>
+          <div class="cal-grid">
+            ${["S","M","T","W","T","F","S"].map(d => `<div class="cal-dow">${d}</div>`).join("")}
+            ${cells.join("")}
+          </div>
+          ${state.calDay ? `<h3>${esc(formatDay(state.calDay))}</h3>${selected.length ? selected.map(bookingCard).join("") : `<p class="muted">Nothing booked this day.</p>`}` : `<p class="muted">Tap a day to see appointments.</p>`}
+        </div>`;
+    }
+    function viewOwnerBookings() {
+      const upcoming = state.bookings.filter(b => new Date(b.end_at) >= Date.now() - 3600000);
+      const past = state.bookings.filter(b => new Date(b.end_at) < Date.now() - 3600000);
+      const list = (items) => items.length ? items.map(bookingCard).join("") : `<p class="muted">None yet.</p>`;
+      return `
+        <div class="stack">
+          <div class="tabs">
+            <button class="tab ${state.bookView === "list" ? "on" : ""}" data-book-view="list" type="button">List</button>
+            <button class="tab ${state.bookView === "calendar" ? "on" : ""}" data-book-view="calendar" type="button">Calendar</button>
+          </div>
+          <button class="btn btn-ghost" id="ownerCalShare" type="button">Add bookings to calendar</button>
+          ${state.bookView === "calendar" ? viewOwnerCalendar() : `
+            <h3>Scheduled appointments</h3>
+            ${list(upcoming)}
+          `}
+          <div class="stack">
+            <h3>Block time</h3>
+            <label class="field">Date <input type="date" id="blockDate" /></label>
+            <div class="btn-row">
+              <label class="field">Start <input type="time" id="blockStart" value="12:00" /></label>
+              <label class="field">End <input type="time" id="blockEnd" value="13:00" /></label>
+            </div>
+            <label class="field">Label <input id="blockLabel" placeholder="Lunch, running late…" /></label>
+            <button class="btn btn-gold" id="blockBtn" type="button">Block this time</button>
+          </div>
+          ${state.bookView === "list" ? `<h3>Past</h3>${list(past)}` : ""}
+        </div>`;
     }
     function viewOwnerHours() {
       return `<form id="hoursForm" class="stack">
@@ -821,6 +918,23 @@
         render();
         if (el.dataset.tab === "other") drawQr();
       }));
+      document.querySelectorAll("[data-book-view]").forEach(el => el.addEventListener("click", () => {
+        state.bookView = el.dataset.bookView;
+        render();
+      }));
+      document.getElementById("ownerCalShare")?.addEventListener("click", shareOwnerCalendar);
+      document.getElementById("calPrev")?.addEventListener("click", () => {
+        state.calCursor = shiftMonth(state.calCursor || monthStart(ymdInTz()), -1);
+        render();
+      });
+      document.getElementById("calNext")?.addEventListener("click", () => {
+        state.calCursor = shiftMonth(state.calCursor || monthStart(ymdInTz()), 1);
+        render();
+      });
+      document.querySelectorAll("[data-cal-day]").forEach(el => el.addEventListener("click", () => {
+        state.calDay = el.dataset.calDay;
+        render();
+      }));
       document.getElementById("blockBtn")?.addEventListener("click", blockTime);
       document.querySelectorAll("[data-done]").forEach(el => el.addEventListener("click", () => setStatus(el.dataset.done, "done")));
       document.querySelectorAll("[data-cancel]").forEach(el => el.addEventListener("click", () => setStatus(el.dataset.cancel, "cancelled")));
@@ -884,6 +998,34 @@
       const a = document.createElement("a");
       a.href = URL.createObjectURL(new Blob([ics], { type: "text/calendar" }));
       a.download = "brassy-monkey.ics";
+      a.click();
+    }
+    function ownerCalendarIcs() {
+      const items = state.bookings.filter(b => new Date(b.end_at) >= Date.now() - 3600000);
+      const events = items.map(b => [
+        "BEGIN:VEVENT",
+        `UID:${b.id}@brassymonkey`,
+        `DTSTART;TZID=America/Chicago:${stampLocal(new Date(b.start_at))}`,
+        `DTEND;TZID=America/Chicago:${stampLocal(new Date(b.end_at))}`,
+        `SUMMARY:${(b.service_name || "Appointment").replace(/[,\\;]/g, " ")} — ${(b.client_name || "").replace(/[,\\;]/g, " ")}`,
+        `DESCRIPTION:${(b.phone || "")}${b.note ? "\\n" + String(b.note).replace(/\n/g, "\\n") : ""}`,
+        `LOCATION:${SHOP.address}\\, ${SHOP.city}`,
+        "END:VEVENT"
+      ].join("\r\n"));
+      return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Brassy Monkey//Owner//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH", ...events, "END:VCALENDAR"].join("\r\n");
+    }
+    async function shareOwnerCalendar() {
+      const ics = ownerCalendarIcs();
+      const file = new File([ics], "brassy-monkey-bookings.ics", { type: "text/calendar" });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: "Brassy Monkey bookings" });
+          return;
+        } catch {}
+      }
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(file);
+      a.download = file.name;
       a.click();
     }
     async function ownerLogin() {
