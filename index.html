@@ -249,6 +249,7 @@
     <footer>
       <div>1011 N Broadway, Suite 3 · Tecumseh, OK</div>
       <div><a href="tel:+19187586486">918-758-6486</a> · <a href="https://www.facebook.com/profile.php?id=61591742622203" target="_blank" rel="noopener">Facebook</a></div>
+      <div style="margin-top:10px"><a href="#/owner">Owner</a></div>
     </footer>
   </div>
 
@@ -401,7 +402,7 @@
 
     function routeFromHash() {
       const h = (location.hash || "#/").replace(/^#\/?/, "");
-      if (h === "backbar") return "owner";
+      if (h.startsWith("owner")) return "owner";
       if (h.startsWith("book")) return "book";
       if (h.startsWith("done")) return "done";
       return "home";
@@ -523,9 +524,10 @@
     function viewOwnerLogin() {
       return `
         <section class="card stack">
+          <h2>Owner</h2>
           ${state.error ? `<p class="err">${esc(state.error)}</p>` : ""}
-          <input class="pin" id="pin" inputmode="numeric" maxlength="4" autocomplete="one-time-code" />
-          <button class="btn btn-red" id="pinBtn" type="button">Continue</button>
+          <input class="pin" id="pin" inputmode="numeric" maxlength="8" autocomplete="off" />
+          <button class="btn btn-red" id="pinBtn" type="button">Open portal</button>
         </section>`;
     }
     function viewOwner() {
@@ -540,10 +542,21 @@
             <button class="tab ${tab === "share" ? "on" : ""}" data-tab="share" type="button">Share</button>
           </div>
           ${state.error ? `<p class="err">${esc(state.error)}</p>` : ""}
+          ${state.pinSaved ? `<p class="ok">PIN saved.</p>` : ""}
           ${tab === "bookings" ? viewOwnerBookings() : ""}
           ${tab === "hours" ? viewOwnerHours() : ""}
           ${tab === "services" ? viewOwnerServices() : ""}
           ${tab === "share" ? viewOwnerShare() : ""}
+          <div class="stack">
+            <h3>Change PIN</h3>
+            <label class="field">New PIN
+              <input class="pin" id="newPin" inputmode="numeric" maxlength="8" autocomplete="off" />
+            </label>
+            <label class="field">Type it again
+              <input class="pin" id="newPin2" inputmode="numeric" maxlength="8" autocomplete="off" />
+            </label>
+            <button class="btn btn-gold" id="pinSave" type="button">Save PIN</button>
+          </div>
           <button class="btn btn-ghost" id="signOut" type="button">Sign out</button>
         </section>`;
     }
@@ -664,9 +677,11 @@
       document.getElementById("pinBtn")?.addEventListener("click", ownerLogin);
       document.getElementById("pin")?.addEventListener("keydown", e => { if (e.key === "Enter") ownerLogin(); });
       document.getElementById("signOut")?.addEventListener("click", () => { sessionStorage.removeItem(PIN_KEY); render(); });
+      document.getElementById("pinSave")?.addEventListener("click", changePin);
       document.querySelectorAll("[data-tab]").forEach(el => el.addEventListener("click", () => {
         state.ownerTab = el.dataset.tab;
         state.error = "";
+        state.pinSaved = false;
         render();
         if (el.dataset.tab === "share") drawQr();
       }));
@@ -737,6 +752,17 @@
       if (error || !data) { state.error = "Try again."; render(); return; }
       sessionStorage.setItem(PIN_KEY, pin);
       await refreshOwner();
+      render();
+    }
+    async function changePin() {
+      const next = (document.getElementById("newPin")?.value || "").trim();
+      const again = (document.getElementById("newPin2")?.value || "").trim();
+      state.error = "";
+      if (next !== again) { state.error = "Those PINs did not match."; render(); return; }
+      const { error } = await sb.rpc("owner_change_pin", { pin: ownerPin(), new_pin: next });
+      if (error) { state.error = errText(error); render(); return; }
+      sessionStorage.setItem(PIN_KEY, next);
+      state.pinSaved = true;
       render();
     }
     async function refreshOwner() {
@@ -854,24 +880,7 @@
       a.click();
     }
 
-    function listenForStaffEntry() {
-      const mark = document.querySelector(".wordmark");
-      if (!mark) return;
-      let taps = 0;
-      let timer = 0;
-      mark.addEventListener("click", () => {
-        taps += 1;
-        clearTimeout(timer);
-        timer = setTimeout(() => { taps = 0; }, 2200);
-        if (taps >= 7) {
-          taps = 0;
-          location.hash = "#/backbar";
-        }
-      });
-    }
-
     async function boot() {
-      listenForStaffEntry();
       try {
         await loadCatalog();
         if (routeFromHash() === "owner" && ownerPin()) {
