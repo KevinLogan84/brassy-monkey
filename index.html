@@ -364,6 +364,7 @@
     .hour-row .hour-times { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: center; }
     .svc-edit { background: var(--fill); border-radius: 14px; padding: 12px; display: grid; gap: 8px; box-shadow: inset 0 0 0 1px var(--line); }
     .svc-edit + .svc-edit { margin-top: 10px; }
+    .svc-edit.is-off { opacity: .55; }
     #qrbox { display: flex; justify-content: center; padding: 12px; background: var(--fill); border-radius: 14px; }
     .pin { letter-spacing: .28em; text-align: center; font-size: 28px; font-weight: 700; background: var(--fill); }
     .confirm-box { text-align: center; }
@@ -491,7 +492,9 @@
       loading: false,
       showDepositModal: false,
       depositAccepted: false,
-      savedNote: ""
+      savedNote: "",
+      cashTag: "",
+      paidClaimed: false
     };
 
     function publicUrl() {
@@ -515,6 +518,19 @@
     function depositCopy(s) {
       const m = money(s?.deposit_amount);
       return m ? `${m} deposit` : "deposit";
+    }
+    function bookableServices() {
+      return state.services.filter(s => s.active === true);
+    }
+    function cashTagOf(tag) {
+      return String(tag || "").replace(/^[$@\s]+/, "").replace(/\s/g, "");
+    }
+    function cashAppUrl(tag, amount) {
+      const t = cashTagOf(tag);
+      if (!t) return "";
+      const n = Number(amount);
+      const amt = Number.isFinite(n) && n > 0 ? (Number.isInteger(n) ? String(n) : n.toFixed(2)) : "";
+      return amt ? `https://cash.app/$${encodeURIComponent(t)}/${amt}` : `https://cash.app/$${encodeURIComponent(t)}`;
     }
     function depositFromForm(form) {
       if (!form.requires_deposit.checked) return null;
@@ -603,14 +619,28 @@
     }
 
     async function loadCatalog() {
-      const [{ data: services, error: e1 }, { data: hours, error: e2 }] = await Promise.all([
+      const [{ data: services, error: e1 }, { data: hours, error: e2 }, shop] = await Promise.all([
         sb.from("services").select("*").order("sort"),
-        sb.from("shop_hours").select("*").order("dow")
+        sb.from("shop_hours").select("*").order("dow"),
+        sb.rpc("public_shop_info")
       ]);
       if (e1) throw e1;
       if (e2) throw e2;
       state.services = services || [];
       state.hours = hours || [];
+      state.cashTag = cashTagOf(shop.data?.cash_tag);
+      if (state.service && state.service.active !== true) {
+        const fresh = state.services.find(s => s.id === state.service.id);
+        if (!fresh || fresh.active !== true) {
+          state.service = null;
+          state.date = null;
+          state.time = null;
+        } else {
+          state.service = fresh;
+        }
+      } else if (state.service) {
+        state.service = state.services.find(s => s.id === state.service.id) || state.service;
+      }
     }
     async function loadTaken() {
       const { data, error } = await sb.from("slots").select("start_at,end_at,status").in("status", ["booked", "blocked"]);
@@ -678,7 +708,9 @@
         ${state.showDepositModal ? viewDepositModal() : ""}`;
     }
     function viewServices() {
-      return state.services.filter(s => s.active).map(s => `
+      const list = bookableServices();
+      if (!list.length) return `<p class="muted">No services are open for booking right now.</p>`;
+      return list.map(s => `
         <button class="service ${state.service?.id === s.id ? "selected" : ""}" data-service="${s.id}" type="button">
           <div><strong>${esc(s.name)}</strong><br><small>${s.minutes} min</small>${s.requires_deposit ? ` <span class="badge">/ Non-refundable deposit ${esc(money(s.deposit_amount))}</span>` : ""}</div>
           <div class="price">${esc(money(s.price))}</div>
@@ -743,7 +775,7 @@
         </label>`;
     }
     function canNext() {
-      if (state.step === 1) return !!state.service;
+      if (state.step === 1) return !!(state.service && state.service.active === true);
       if (state.step === 2) return !!state.date;
       if (state.step === 3) return !!state.time;
       return true;
@@ -752,6 +784,24 @@
       const c = state.confirmation;
       if (!c) return `<section class="card"><p>No booking on this screen.</p><a class="btn btn-red" href="#/">Home</a></section>`;
       const start = new Date(c.start_at);
+      const pending = c.status === "pending_deposit";
+      const tag = cashTagOf(c.cash_tag || state.cashTag);
+      const pay = cashAppUrl(tag, c.deposit_amount);
+      if (pending) {
+        return `
+        <section class="card confirm-box stack">
+          <h2>Pay to confirm</h2>
+          <p><strong>${esc(c.service_name)}</strong><br>${esc(formatFull(start))}<br>with ${esc(SHOP.stylist)}</p>
+          <p class="badge">This appointment is not confirmed until you pay the ${esc(money(c.deposit_amount))} Cash App deposit and ${esc(SHOP.stylist)} marks it received.</p>
+          <p class="muted">The deposit is non-refundable once paid. Your time is held so nobody else can take it.</p>
+          ${pay ? `<a class="btn btn-red" id="cashPay" href="${esc(pay)}" target="_blank" rel="noopener">Pay ${esc(money(c.deposit_amount))} on Cash App</a>` : `<p class="err">Cash App is not set up yet. Text the shop.</p>`}
+          ${state.paidClaimed || c.client_paid_claim
+            ? `<p class="ok">Told the shop you paid. It will show on her calendar after she confirms the deposit.</p>`
+            : `<button class="btn btn-gold" id="paidBtn" type="button">I paid the deposit</button>`}
+          <a class="btn btn-ghost" href="sms:${SHOP.tel}">Text ${esc(SHOP.phone)}</a>
+          <a class="btn btn-ghost" href="#/">Done</a>
+        </section>`;
+      }
       return `
         <section class="card confirm-box stack">
           <div class="check">✓</div>
@@ -763,12 +813,14 @@
         </section>`;
     }
     function viewDepositModal() {
+      const tag = cashTagOf(state.cashTag);
       return `
         <div class="sheet-bg" id="depositSheet">
           <div class="sheet stack">
             <h2>Non-refundable deposit</h2>
-            <p><strong>${esc(state.service?.name || "This service")}</strong> requires a ${esc(depositCopy(state.service))} to hold your time with ${esc(SHOP.stylist)}.</p>
-            <p>Once the ${esc(depositCopy(state.service))} is paid and this appointment is scheduled, it is <strong>non-refundable</strong>. Payment will be collected in a later step.</p>
+            <p><strong>${esc(state.service?.name || "This service")}</strong> requires a ${esc(depositCopy(state.service))} on Cash App to hold your time with ${esc(SHOP.stylist)}.</p>
+            <p>This appointment is <strong>not confirmed</strong> until you pay that deposit and she marks it received. Once paid, the deposit is <strong>non-refundable</strong>.</p>
+            ${tag ? `<p class="muted">You will pay $${esc(tag)} on Cash App in the next step.</p>` : `<p class="err">The shop has not added a Cash App $cashtag yet.</p>`}
             <button class="btn btn-red" id="depositOk" type="button">I understand</button>
             <button class="btn btn-ghost" id="depositCancel" type="button">Not now</button>
           </div>
@@ -835,15 +887,25 @@
       return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-01`;
     }
     function bookingsOn(ymd) {
-      return state.bookings.filter(b => ymdInTz(new Date(b.start_at)) === ymd);
+      return state.bookings.filter(b => (b.status === "booked" || b.status === "done") && ymdInTz(new Date(b.start_at)) === ymd);
+    }
+    function prettyStatus(b) {
+      if (b.status === "pending_deposit") return b.client_paid_claim ? "Paid — confirm it" : "Awaiting deposit";
+      return b.status;
     }
     function bookingCard(b) {
       return `
         <article class="booking">
           <strong>${esc(formatFull(new Date(b.start_at)))}</strong>
-          <div>${esc(b.service_name)} · ${b.minutes} min · ${esc(b.status)}</div>
+          <div>${esc(b.service_name)} · ${b.minutes} min · ${esc(prettyStatus(b))}</div>
           <div>${esc(b.client_name)} · <a href="tel:${esc(b.phone)}">${esc(b.phone)}</a></div>
           ${b.note ? `<div class="muted">${esc(b.note)}</div>` : ""}
+          ${b.status === "pending_deposit" ? `
+            <p class="${b.client_paid_claim ? "ok" : "badge"}">${b.client_paid_claim ? "Client says they paid on Cash App." : `Awaiting ${esc(money(b.deposit_amount))} Cash App deposit`}</p>
+            <div class="btn-row" style="margin-top:8px">
+              <button class="btn btn-gold" data-deposit-ok="${b.id}" type="button">Deposit received</button>
+              <button class="btn btn-ghost" data-cancel="${b.id}" type="button">Cancel</button>
+            </div>` : ""}
           ${b.status === "booked" ? `<div class="btn-row" style="margin-top:8px">
             <button class="btn btn-gold" data-done="${b.id}" type="button">Done</button>
             <button class="btn btn-ghost" data-cancel="${b.id}" type="button">Cancel</button>
@@ -884,8 +946,9 @@
         </div>`;
     }
     function viewOwnerBookings() {
-      const upcoming = state.bookings.filter(b => new Date(b.end_at) >= Date.now() - 3600000);
-      const past = state.bookings.filter(b => new Date(b.end_at) < Date.now() - 3600000);
+      const pending = state.bookings.filter(b => b.status === "pending_deposit");
+      const upcoming = state.bookings.filter(b => b.status === "booked" && new Date(b.end_at) >= Date.now() - 3600000);
+      const past = state.bookings.filter(b => (b.status === "booked" || b.status === "done") && new Date(b.end_at) < Date.now() - 3600000);
       const list = (items) => items.length ? items.map(bookingCard).join("") : `<p class="muted">None yet.</p>`;
       return `
         <div class="stack">
@@ -894,6 +957,7 @@
             <button class="tab ${state.bookView === "calendar" ? "on" : ""}" data-book-view="calendar" type="button">Calendar</button>
           </div>
           <button class="btn btn-ghost" id="ownerCalShare" type="button">Add bookings to calendar</button>
+          ${pending.length ? `<h3>Awaiting deposit</h3>${list(pending)}` : ""}
           ${state.bookView === "calendar" ? viewOwnerCalendar() : `
             <h3>Scheduled appointments</h3>
             ${list(upcoming)}
@@ -935,13 +999,13 @@
       return `
         <div class="stack">
           ${state.services.map(s => `
-            <form class="svc-edit" data-id="${s.id}">
+            <form class="svc-edit ${s.active ? "" : "is-off"}" data-id="${s.id}">
               <input name="name" value="${esc(s.name)}" />
               <div class="btn-row">
                 <label class="field">Price <input name="price" type="number" min="0" step="0.01" value="${s.price ?? ""}" /></label>
                 <label class="field">Minutes <input name="minutes" type="number" min="5" step="5" value="${s.minutes}" /></label>
               </div>
-              <label class="open-check"><input type="checkbox" name="active" ${s.active ? "checked" : ""} /> Clients can book this</label>
+              <label class="open-check"><input type="checkbox" name="active" ${s.active ? "checked" : ""} data-bookable /> Clients can book this</label>
               <label class="open-check"><input type="checkbox" name="requires_deposit" ${s.requires_deposit ? "checked" : ""} data-deposit-toggle /> Requires Non-refundable Deposit</label>
               <label class="field deposit-amt ${s.requires_deposit ? "" : "hidden"}">Deposit amount
                 <input name="deposit_amount" type="number" min="1" step="0.01" inputmode="decimal" value="${s.deposit_amount ?? ""}" ${s.requires_deposit ? "" : "disabled"} />
@@ -980,6 +1044,12 @@
           <a class="btn btn-ghost" href="${esc(SHOP.facebook)}" target="_blank" rel="noopener">Open Facebook</a>
           <div id="qrbox"><canvas id="qr"></canvas></div>
           <button class="btn btn-gold" id="qrDl" type="button">Download QR</button>
+          <h3>Cash App deposit</h3>
+          <p>Clients pay the deposit to this $cashtag. Those appointments stay off your calendar until you tap Deposit received.</p>
+          <label class="field">Cash App $cashtag
+            <input id="cashTag" autocomplete="off" spellcheck="false" placeholder="$yourcashtag" value="${state.cashTag ? esc("$" + state.cashTag) : ""}" />
+          </label>
+          <button class="btn btn-red" id="cashSave" type="button">Save Cash App</button>
           <h3>Change PIN</h3>
           <label class="field">New PIN
             <input class="pin" id="newPin" inputmode="numeric" maxlength="8" autocomplete="off" />
@@ -1094,7 +1164,15 @@
       }));
       document.getElementById("blockBtn")?.addEventListener("click", blockTime);
       document.querySelectorAll("[data-done]").forEach(el => el.addEventListener("click", () => setStatus(el.dataset.done, "done")));
+      document.querySelectorAll("[data-deposit-ok]").forEach(el => el.addEventListener("click", () => setStatus(el.dataset.depositOk, "booked")));
       document.querySelectorAll("[data-cancel]").forEach(el => el.addEventListener("click", () => setStatus(el.dataset.cancel, "cancelled")));
+      document.getElementById("cashSave")?.addEventListener("click", saveCashTag);
+      document.getElementById("paidBtn")?.addEventListener("click", claimDepositPaid);
+      document.querySelectorAll("[data-bookable]").forEach(el => el.addEventListener("change", () => {
+        const form = el.closest("form");
+        form.classList.toggle("is-off", !el.checked);
+        saveService({ preventDefault() {} }, form);
+      }));
       document.getElementById("hoursForm")?.addEventListener("submit", saveHours);
       document.querySelectorAll("[data-open-day]").forEach(el => el.addEventListener("change", () => {
         const row = el.closest(".hour-row");
@@ -1112,6 +1190,18 @@
 
     async function confirmBook() {
       state.error = "";
+      if (state.service?.active !== true) {
+        state.error = "That service is not open for booking.";
+        state.service = null;
+        state.step = 1;
+        render();
+        return;
+      }
+      if (state.service?.requires_deposit && !cashTagOf(state.cashTag)) {
+        state.error = "This service needs a Cash App deposit. The shop has not added a $cashtag yet.";
+        render();
+        return;
+      }
       if (state.service?.requires_deposit && !state.depositAccepted) {
         state.showDepositModal = true;
         state.loading = false;
@@ -1130,6 +1220,7 @@
         });
         if (error) throw error;
         state.confirmation = data;
+        state.paidClaimed = false;
         state.loading = false;
         location.hash = "#/done";
       } catch (e) {
@@ -1164,7 +1255,7 @@
       a.click();
     }
     function ownerCalendarIcs() {
-      const items = state.bookings.filter(b => new Date(b.end_at) >= Date.now() - 3600000);
+      const items = state.bookings.filter(b => b.status === "booked" && new Date(b.end_at) >= Date.now() - 3600000);
       const events = items.map(b => [
         "BEGIN:VEVENT",
         `UID:${b.id}@brassymonkey`,
@@ -1224,7 +1315,25 @@
       const { error } = await sb.rpc("owner_set_booking_status", { pin: ownerPin(), p_id: id, p_status: status });
       if (error) { state.error = errText(error); render(); return; }
       await refreshOwner();
-      showSaved(status === "done" ? "Appointment marked done." : "Appointment cancelled.");
+      showSaved(status === "booked" ? "Deposit received. Appointment is confirmed." : status === "done" ? "Appointment marked done." : "Appointment cancelled.");
+    }
+    async function saveCashTag() {
+      const raw = document.getElementById("cashTag")?.value || "";
+      state.error = "";
+      const { error } = await sb.rpc("owner_save_cashtag", { pin: ownerPin(), p_cash_tag: raw });
+      if (error) { state.error = errText(error); render(); return; }
+      state.cashTag = cashTagOf(raw);
+      showSaved("Cash App $cashtag is saved.");
+    }
+    async function claimDepositPaid() {
+      const id = state.confirmation?.id;
+      if (!id) return;
+      state.error = "";
+      const { error } = await sb.rpc("claim_deposit_paid", { p_id: id });
+      if (error) { state.error = errText(error); render(); return; }
+      state.paidClaimed = true;
+      if (state.confirmation) state.confirmation.client_paid_claim = true;
+      render();
     }
     async function blockTime() {
       const date = document.getElementById("blockDate").value;
