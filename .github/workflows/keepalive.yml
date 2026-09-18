@@ -1,0 +1,23 @@
+name: Keep Supabase awake
+
+# Free Supabase projects pause after a week with no API traffic, which takes
+# the booking site down. A tiny read every 12 hours keeps it active.
+on:
+  schedule:
+    - cron: "17 */12 * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Read one service row
+        env:
+          SB_URL: https://kaopminkiwnjtednhmxq.supabase.co
+          SB_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthb3BtaW5raXduanRlZG5obXhxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcxODYzNTgsImV4cCI6MjEwMjc2MjM1OH0.mIjPx1nIxVmbxKj6YX7_7rLNLJkzRWvdY6JKg8OiD-U
+        run: |
+          code=$(curl -s -o /tmp/out.json -w "%{http_code}" \
+            "$SB_URL/rest/v1/services?select=id&limit=1" \
+            -H "apikey: $SB_KEY" -H "Authorization: Bearer $SB_KEY")
+          echo "HTTP $code"; cat /tmp/out.json; echo
+          test "$code" = "200"

@@ -35,7 +35,7 @@
       --safe-t: env(safe-area-inset-top, 0px);
       --safe-b: env(safe-area-inset-bottom, 0px);
     }
-    html { color-scheme: only light; }
+    html { color-scheme: only light; scroll-padding-bottom: 96px; }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     html, body { margin: 0; min-height: 100%; background: var(--cream); }
     body {
@@ -276,6 +276,15 @@
     textarea { min-height: 96px; resize: vertical; }
     .err { color: var(--red); font-size: 15px; margin: 0; }
     .ok { color: var(--ok); }
+    .notice {
+      background: rgba(196, 18, 28, .08);
+      color: var(--red-deep);
+      border-radius: 14px;
+      padding: 12px 14px;
+      font-size: 15px;
+      line-height: 1.4;
+    }
+    .booking.blocked { background: rgba(60, 40, 10, .05); }
     .hidden { display: none !important; }
     footer {
       text-align: center;
@@ -450,7 +459,6 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
   <script>
     const SHOP = {
       name: "Brassy Monkey",
@@ -468,6 +476,7 @@
     const sb = supabase.createClient(SB_URL, SB_KEY);
     const PIN_KEY = "bm-owner-pin";
     const TZ = SHOP.tz;
+    const QR_LIB = "https://cdn.jsdelivr.net/npm/qrcode@1.5.4/+esm";
 
     const state = {
       route: "home",
@@ -489,6 +498,7 @@
       calDay: null,
       bookCal: null,
       error: "",
+      offline: false,
       loading: false,
       showDepositModal: false,
       depositAccepted: false,
@@ -612,6 +622,25 @@
       return out;
     }
     function ownerPin() { return sessionStorage.getItem(PIN_KEY) || ""; }
+    function resetBooking() {
+      state.step = 1;
+      state.service = null;
+      state.date = null;
+      state.time = null;
+      state.note = "";
+      state.bookCal = null;
+      state.depositAccepted = false;
+      state.showDepositModal = false;
+      state.loading = false;
+    }
+    function offlineNotice() {
+      return state.offline
+        ? `<p class="notice">We're having trouble loading the booking system right now. Please try again in a minute or <a href="sms:${SHOP.tel}">text the shop</a> to book.</p>`
+        : "";
+    }
+    function isBlock(b) {
+      return b.phone === "owner";
+    }
     function setHash(route) {
       if (location.hash !== "#/" + route && location.hash !== "#" + route) {
         location.hash = "#/" + route;
@@ -626,6 +655,7 @@
       ]);
       if (e1) throw e1;
       if (e2) throw e2;
+      state.offline = false;
       state.services = services || [];
       state.hours = hours || [];
       state.cashTag = cashTagOf(shop.data?.cash_tag);
@@ -677,15 +707,16 @@
             <div>Serving men, women &amp; children · Full service salon</div>
             <div>Appointments &amp; walk-ins welcome</div>
           </div>
+          ${offlineNotice()}
           <a class="btn btn-red" href="#/book">Book an appointment</a>
           <a class="btn btn-ghost" href="sms:${SHOP.tel}">Text the shop</a>
         </section>
-        <section class="card">
+        ${hours.length ? `<section class="card">
           <h2>Hours</h2>
           <ul class="hours-list">
             ${hours.map(h => `<li><span>${esc(h.name)}</span><span>${esc(prettyHours(h))}</span></li>`).join("")}
           </ul>
-        </section>`;
+        </section>` : ""}`;
     }
 
     function viewBook() {
@@ -695,6 +726,7 @@
         <section class="card stack">
           <h2>${titles[step - 1]}</h2>
           <p class="muted tiny">${step} of 4</p>
+          ${offlineNotice()}
           ${state.error ? `<p class="err">${esc(state.error)}</p>` : ""}
           ${step === 1 ? viewServices() : ""}
           ${step === 2 ? viewDates() : ""}
@@ -709,6 +741,7 @@
     }
     function viewServices() {
       const list = bookableServices();
+      if (state.offline) return "";
       if (!list.length) return `<p class="muted">No services are open for booking right now.</p>`;
       return list.map(s => `
         <button class="service ${state.service?.id === s.id ? "selected" : ""}" data-service="${s.id}" type="button">
@@ -718,12 +751,26 @@
     }
     function viewDates() {
       if (!state.service) return `<p class="muted">Pick a service first.</p>`;
-      if (!state.bookCal) state.bookCal = monthStart(ymdInTz());
       const minutes = state.service.minutes;
       const today = ymdInTz();
       const horizon = addMonthsYmd(today, 3);
       const thisMonth = monthStart(today);
       const lastMonth = monthStart(horizon);
+      if (!state.bookCal || state.bookCal < thisMonth || state.bookCal > lastMonth) state.bookCal = thisMonth;
+      const dayOpen = (ymd) => ymd >= today && ymd <= horizon && generateSlots(ymd, minutes, state.slots).length > 0;
+      const monthHasOpening = (cursor) => {
+        const [cy, cm] = cursor.split("-").map(Number);
+        const n = new Date(Date.UTC(cy, cm, 0)).getUTCDate();
+        for (let d = 1; d <= n; d++) {
+          if (dayOpen(`${cy}-${String(cm).padStart(2, "0")}-${String(d).padStart(2, "0")}`)) return true;
+        }
+        return false;
+      };
+      if (!state.date) {
+        let cursor = state.bookCal;
+        while (cursor < lastMonth && !monthHasOpening(cursor)) cursor = shiftMonth(cursor, 1);
+        if (monthHasOpening(cursor)) state.bookCal = cursor;
+      }
       const [y, m] = state.bookCal.split("-").map(Number);
       const first = new Date(Date.UTC(y, m - 1, 1));
       const startPad = first.getUTCDay();
@@ -733,7 +780,7 @@
       for (let i = 0; i < startPad; i++) cells.push(`<div></div>`);
       for (let day = 1; day <= daysIn; day++) {
         const ymd = `${y}-${String(m).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-        const open = ymd >= today && ymd <= horizon && generateSlots(ymd, minutes, state.slots).length > 0;
+        const open = dayOpen(ymd);
         cells.push(`<button class="cal-day ${ymd === today ? "today" : ""} ${state.date === ymd ? "on" : ""}" data-date="${ymd}" ${open ? "" : "disabled"} type="button">
           ${day}${open ? `<span class="cal-dot"></span>` : ""}
         </button>`);
@@ -795,6 +842,7 @@
           <p class="badge">This appointment is not confirmed until you pay the ${esc(money(c.deposit_amount))} Cash App deposit and ${esc(SHOP.stylist)} marks it received.</p>
           <p class="muted">The deposit is non-refundable once paid. Your time is held so nobody else can take it.</p>
           ${pay ? `<a class="btn btn-red" id="cashPay" href="${esc(pay)}" target="_blank" rel="noopener">Pay ${esc(money(c.deposit_amount))} on Cash App</a>` : `<p class="err">Cash App is not set up yet. Text the shop.</p>`}
+          ${state.error ? `<p class="err">${esc(state.error)}</p>` : ""}
           ${state.paidClaimed || c.client_paid_claim
             ? `<p class="ok">Told the shop you paid. It will show on her calendar after she confirms the deposit.</p>`
             : `<button class="btn btn-gold" id="paidBtn" type="button">I paid the deposit</button>`}
@@ -841,12 +889,24 @@
       state.savedNote = note;
       render();
     }
+    function showError(e) {
+      state.error = errText(e);
+      render();
+      document.querySelector(".err")?.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+    function showFormError(form, e) {
+      const el = form.querySelector(".form-err");
+      if (!el) { showError(e); return; }
+      el.textContent = errText(e);
+      el.classList.remove("hidden");
+      el.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
     function viewOwnerLogin() {
       return `
         <section class="card stack">
           <h2>Owner</h2>
           ${state.error ? `<p class="err">${esc(state.error)}</p>` : ""}
-          <input class="pin" id="pin" inputmode="numeric" maxlength="8" autocomplete="off" />
+          <input class="pin" id="pin" inputmode="numeric" maxlength="8" autocomplete="off" aria-label="Owner PIN" placeholder="PIN" />
           <button class="btn btn-red" id="pinBtn" type="button">Open portal</button>
         </section>`;
     }
@@ -894,6 +954,16 @@
       return b.status;
     }
     function bookingCard(b) {
+      if (isBlock(b)) {
+        return `
+        <article class="booking blocked">
+          <strong>${esc(formatFull(new Date(b.start_at)))} – ${esc(formatClock(new Date(b.end_at)))}</strong>
+          <div>Blocked · ${esc(b.client_name)}</div>
+          ${b.status === "booked" ? `<div class="btn-row" style="margin-top:8px">
+            <button class="btn btn-ghost" data-cancel="${b.id}" type="button">Remove block</button>
+          </div>` : ""}
+        </article>`;
+      }
       return `
         <article class="booking">
           <strong>${esc(formatFull(new Date(b.start_at)))}</strong>
@@ -901,6 +971,7 @@
           <div>${esc(b.client_name)} · <a href="tel:${esc(b.phone)}">${esc(b.phone)}</a></div>
           ${b.note ? `<div class="muted">${esc(b.note)}</div>` : ""}
           ${b.status === "pending_deposit" ? `
+            <div class="muted tiny">Requested ${esc(formatFull(new Date(b.created_at)))}</div>
             <p class="${b.client_paid_claim ? "ok" : "badge"}">${b.client_paid_claim ? "Client says they paid on Cash App." : `Awaiting ${esc(money(b.deposit_amount))} Cash App deposit`}</p>
             <div class="btn-row" style="margin-top:8px">
               <button class="btn btn-gold" data-deposit-ok="${b.id}" type="button">Deposit received</button>
@@ -1010,6 +1081,7 @@
               <label class="field deposit-amt ${s.requires_deposit ? "" : "hidden"}">Deposit amount
                 <input name="deposit_amount" type="number" min="1" step="0.01" inputmode="decimal" value="${s.deposit_amount ?? ""}" ${s.requires_deposit ? "" : "disabled"} />
               </label>
+              <p class="err form-err hidden"></p>
               <div class="btn-row">
                 <button class="btn btn-red" type="submit">Save</button>
                 <button class="btn btn-ghost" data-del="${s.id}" type="button">Delete</button>
@@ -1026,6 +1098,7 @@
             <label class="field deposit-amt hidden">Deposit amount
               <input name="deposit_amount" type="number" min="1" step="0.01" inputmode="decimal" disabled />
             </label>
+            <p class="err form-err hidden"></p>
             <button class="btn btn-gold" type="submit">Add service</button>
           </form>
         </div>`;
@@ -1133,9 +1206,7 @@
       document.querySelectorAll("[data-tab]").forEach(el => el.addEventListener("click", () => {
         state.ownerTab = el.dataset.tab;
         state.error = "";
-        state.pinSaved = false;
         render();
-        if (el.dataset.tab === "other") drawQr();
       }));
       document.querySelectorAll("[data-book-view]").forEach(el => el.addEventListener("click", () => {
         state.bookView = el.dataset.bookView;
@@ -1295,9 +1366,9 @@
       const next = (document.getElementById("newPin")?.value || "").trim();
       const again = (document.getElementById("newPin2")?.value || "").trim();
       state.error = "";
-      if (next !== again) { state.error = "Those PINs did not match."; render(); return; }
+      if (next !== again) { showError("Those PINs did not match."); return; }
       const { error } = await sb.rpc("owner_change_pin", { pin: ownerPin(), new_pin: next });
-      if (error) { state.error = errText(error); render(); return; }
+      if (error) { showError(error); return; }
       sessionStorage.setItem(PIN_KEY, next);
       showSaved("Your PIN is saved.");
     }
@@ -1312,16 +1383,21 @@
     }
     async function setStatus(id, status) {
       state.error = "";
+      const target = state.bookings.find(b => b.id === id);
       const { error } = await sb.rpc("owner_set_booking_status", { pin: ownerPin(), p_id: id, p_status: status });
-      if (error) { state.error = errText(error); render(); return; }
+      if (error) { showError(error); return; }
       await refreshOwner();
-      showSaved(status === "booked" ? "Deposit received. Appointment is confirmed." : status === "done" ? "Appointment marked done." : "Appointment cancelled.");
+      const note = status === "booked" ? "Deposit received. Appointment is confirmed."
+        : status === "done" ? "Appointment marked done."
+        : target && isBlock(target) ? "That time is open again."
+        : "Appointment cancelled.";
+      showSaved(note);
     }
     async function saveCashTag() {
       const raw = document.getElementById("cashTag")?.value || "";
       state.error = "";
       const { error } = await sb.rpc("owner_save_cashtag", { pin: ownerPin(), p_cash_tag: raw });
-      if (error) { state.error = errText(error); render(); return; }
+      if (error) { showError(error); return; }
       state.cashTag = cashTagOf(raw);
       showSaved("Cash App $cashtag is saved.");
     }
@@ -1340,14 +1416,15 @@
       const start = document.getElementById("blockStart").value;
       const end = document.getElementById("blockEnd").value;
       const label = document.getElementById("blockLabel").value;
-      if (!date || !start || !end) { state.error = "Pick a date and times."; render(); return; }
+      if (!date || !start || !end) { showError("Pick a date and times."); return; }
+      if (end <= start) { showError("End time must be after start."); return; }
       const { error } = await sb.rpc("owner_block_time", {
         pin: ownerPin(),
         p_start: zonedTimeToUtc(date, start).toISOString(),
         p_end: zonedTimeToUtc(date, end).toISOString(),
         p_label: label || "Blocked"
       });
-      if (error) { state.error = errText(error); render(); return; }
+      if (error) { showError(error); return; }
       await refreshOwner();
       showSaved("That time is blocked.");
     }
@@ -1362,7 +1439,7 @@
         close_time: form[`close-${h.dow}`].value
       }));
       const { error } = await sb.rpc("owner_save_hours", { pin: ownerPin(), p_hours: hours });
-      if (error) { state.error = errText(error); render(); return; }
+      if (error) { showError(error); return; }
       await loadCatalog();
       showSaved("Your hours are saved.");
     }
@@ -1379,7 +1456,7 @@
         p_deposit_amount: depositFromForm(form),
         p_sort: state.services.find(s => s.id === form.dataset.id)?.sort ?? 0
       });
-      if (error) { state.error = errText(error); render(); return; }
+      if (error) { showFormError(form, error); return; }
       await loadCatalog();
       showSaved("This service is saved.");
     }
@@ -1397,14 +1474,14 @@
         p_deposit_amount: depositFromForm(form),
         p_sort: (state.services.at(-1)?.sort || 0) + 1
       });
-      if (error) { state.error = errText(error); render(); return; }
+      if (error) { showFormError(form, error); return; }
       await loadCatalog();
       showSaved("Service added.");
     }
     async function deleteService(id) {
       if (!confirm("Delete this service?")) return;
       const { error } = await sb.rpc("owner_delete_service", { pin: ownerPin(), p_id: id });
-      if (error) { state.error = errText(error); render(); return; }
+      if (error) { showError(error); return; }
       await loadCatalog();
       showSaved("Service deleted.");
     }
@@ -1424,10 +1501,18 @@
         copyLink();
       }
     }
-    function drawQr() {
+    let qrLib = null;
+    async function drawQr() {
       const canvas = document.getElementById("qr");
-      if (!canvas || !window.QRCode) return;
-      QRCode.toCanvas(canvas, publicUrl(), { width: 220, margin: 1, color: { dark: "#14110E", light: "#FFFFFF" } });
+      if (!canvas) return;
+      try {
+        qrLib ??= await import(QR_LIB);
+        const lib = qrLib.default || qrLib;
+        await lib.toCanvas(canvas, publicUrl(), { width: 220, margin: 1, color: { dark: "#14110E", light: "#FFFFFF" } });
+      } catch {
+        document.getElementById("qrbox")?.classList.add("hidden");
+        document.getElementById("qrDl")?.classList.add("hidden");
+      }
     }
     function downloadQr() {
       const canvas = document.getElementById("qr");
@@ -1445,14 +1530,21 @@
           try { await refreshOwner(); } catch (e) { sessionStorage.removeItem(PIN_KEY); state.error = errText(e); }
         }
       } catch (e) {
-        state.error = errText(e);
+        state.offline = true;
+        state.error = "";
       }
       render();
     }
     window.addEventListener("hashchange", async () => {
       state.error = "";
-      if (routeFromHash() === "book" && state.step === 1 && !state.service) state.step = 1;
-      if (routeFromHash() === "owner" && ownerPin()) {
+      const next = routeFromHash();
+      if (next === "book" && state.route !== "book") {
+        resetBooking();
+        if (state.offline) {
+          try { await loadCatalog(); } catch {}
+        }
+      }
+      if (next === "owner" && ownerPin()) {
         try { await refreshOwner(); } catch (e) { state.error = errText(e); }
       }
       render();
