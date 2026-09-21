@@ -92,6 +92,35 @@
       margin: 8px 0 0;
       color: var(--muted);
     }
+    body[data-page="home"] .wrap {
+      padding: calc(2px + var(--safe-t)) 16px calc(6px + var(--safe-b));
+    }
+    body[data-page="home"] header.brand { padding: 0; }
+    body[data-page="home"] .logo-ring {
+      width: min(132px, 34vw);
+      height: min(132px, 34vw);
+    }
+    body[data-page="home"] .wordmark {
+      font-size: clamp(28px, 7.4vw, 34px);
+      margin: 0;
+    }
+    body[data-page="home"] .submark { margin: 1px 0 0; font-size: 10px; letter-spacing: .14em; }
+    body[data-page="home"] .card { padding: 10px 12px; margin: 6px 0; }
+    body[data-page="home"] .stack { gap: 8px; }
+    body[data-page="home"] .facts { gap: 1px; font-size: 13px; line-height: 1.25; }
+    body[data-page="home"] .facts strong { font-size: 15px; }
+    body[data-page="home"] .btn { min-height: 42px; font-size: 16px; border-radius: 12px; }
+    body[data-page="home"] h2 { font-size: 20px; margin: 0 0 6px; }
+    body[data-page="home"] .hours-list li {
+      min-height: 0;
+      padding: 4px 12px;
+      font-size: 14px;
+    }
+    body[data-page="home"] footer {
+      padding: 2px 8px 0;
+      font-size: 12px;
+      line-height: 1.3;
+    }
     body[data-page]:not([data-page="home"]) header.brand .logo-ring {
       width: 108px;
       height: 108px;
@@ -304,6 +333,8 @@
       padding: 18px 8px 4px;
     }
     footer a { text-decoration: none; font-weight: 500; }
+    .owner-link { margin-top: 10px; }
+    body[data-page="home"] .owner-link { margin-top: 2px; }
     .tabs {
       display: flex;
       gap: 4px;
@@ -464,7 +495,7 @@
     <footer>
       <div>1011 N Broadway, Suite 3 · Tecumseh, OK</div>
       <div><a href="tel:+19187586486">918-758-6486</a> · <a href="https://www.facebook.com/profile.php?id=61591742622203" target="_blank" rel="noopener">Facebook</a></div>
-      <div style="margin-top:10px"><a href="#/owner">Owner</a></div>
+      <div class="owner-link"><a href="#/owner">Owner</a></div>
     </footer>
   </div>
 
