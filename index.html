@@ -430,9 +430,28 @@
       z-index: 4;
       display: grid;
       gap: 10px;
-      padding: 12px 0 calc(8px + var(--safe-b));
-      background: linear-gradient(180deg, rgba(243,230,207,0), var(--cream) 28%);
+      margin: 4px -16px -18px;
+      padding: 12px 16px calc(16px + var(--safe-b));
+      border-radius: 0 0 var(--radius) var(--radius);
+      background: linear-gradient(180deg, rgba(255,248,236,0), var(--paper) 24%);
     }
+    .closure-list { margin: 8px 0 0; padding: 0; list-style: none; display: grid; gap: 2px; }
+    .closure-list li { font-size: 14px; font-weight: 600; color: var(--red-deep); }
+    .closure-list li span { font-weight: 500; color: var(--muted); }
+    .my-appt { font-size: 14px; text-align: center; color: var(--muted); }
+    .my-appt a { color: var(--red-deep); font-weight: 600; }
+    body[data-page="home"] .closure-list li { font-size: 13px; }
+    .closure-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      background: var(--fill);
+      border-radius: 12px;
+      padding: 10px 12px;
+      box-shadow: inset 0 0 0 1px var(--line);
+    }
+    .closure-row .btn { width: auto; min-height: 38px; font-size: 15px; }
     .badge {
       display: inline;
       font-size: 11px;
@@ -546,8 +565,11 @@
       depositAccepted: false,
       savedNote: "",
       cashTag: "",
-      paidClaimed: false
+      paidClaimed: false,
+      closures: [],
+      manage: null
     };
+    const MY_KEY = "bm-my-bookings";
 
     function publicUrl() {
       const u = new URL(location.href);
@@ -647,9 +669,33 @@
       const b = formatClock(zonedTimeToUtc("2026-01-05", String(h.close_time).slice(0, 5)));
       return `${a} – ${b}`;
     }
+    function closureFor(ymd) {
+      return state.closures.find(c => c.day === ymd);
+    }
+    function myBookings() {
+      try { return JSON.parse(localStorage.getItem(MY_KEY) || "[]"); } catch { return []; }
+    }
+    function saveMyBookings(list) {
+      try { localStorage.setItem(MY_KEY, JSON.stringify(list.slice(-5))); } catch {}
+    }
+    function rememberBooking(c) {
+      saveMyBookings([...myBookings().filter(b => b.id !== c.id), { id: c.id, start_at: c.start_at, service_name: c.service_name }]);
+    }
+    function forgetBooking(id) {
+      saveMyBookings(myBookings().filter(b => b.id !== id));
+    }
+    function nextMyBooking() {
+      return myBookings()
+        .filter(b => new Date(b.start_at).getTime() > Date.now())
+        .sort((a, b) => new Date(a.start_at) - new Date(b.start_at))[0];
+    }
+    function manageId() {
+      const m = (location.hash || "").match(/^#\/?manage\/([0-9a-f-]{36})/i);
+      return m ? m[1] : null;
+    }
     function generateSlots(ymd, minutes, taken) {
       const h = hoursFor(ymd);
-      if (!h || h.closed) return [];
+      if (!h || h.closed || closureFor(ymd)) return [];
       const open = zonedTimeToUtc(ymd, h.open_time);
       const close = zonedTimeToUtc(ymd, h.close_time);
       const step = 15 * 60 * 1000;
@@ -690,16 +736,18 @@
     }
 
     async function loadCatalog() {
-      const [{ data: services, error: e1 }, { data: hours, error: e2 }, shop] = await Promise.all([
+      const [{ data: services, error: e1 }, { data: hours, error: e2 }, shop, closures] = await Promise.all([
         sb.from("services").select("*").order("sort"),
         sb.from("shop_hours").select("*").order("dow"),
-        sb.rpc("public_shop_info")
+        sb.rpc("public_shop_info"),
+        sb.from("shop_closures").select("day,note").gte("day", ymdInTz()).order("day")
       ]);
       if (e1) throw e1;
       if (e2) throw e2;
       state.offline = false;
       state.services = services || [];
       state.hours = hours || [];
+      state.closures = closures.data || [];
       state.cashTag = cashTagOf(shop.data?.cash_tag);
       if (state.service && state.service.active !== true) {
         const fresh = state.services.find(s => s.id === state.service.id);
@@ -725,6 +773,7 @@
       if (h.startsWith("owner")) return "owner";
       if (h.startsWith("book")) return "book";
       if (h.startsWith("done")) return "done";
+      if (h.startsWith("manage")) return "manage";
       return "home";
     }
 
@@ -735,6 +784,7 @@
       if (state.route === "home") root.innerHTML = viewHome();
       else if (state.route === "book") root.innerHTML = viewBook();
       else if (state.route === "done") root.innerHTML = viewDone();
+      else if (state.route === "manage") root.innerHTML = viewManage();
       else if (state.route === "owner") root.innerHTML = ownerPin() ? viewOwner() : viewOwnerLogin();
       bind();
       document.querySelector(".chip.selected")?.scrollIntoView({ inline: "center", block: "nearest" });
@@ -742,6 +792,9 @@
 
     function viewHome() {
       const hours = [...state.hours].sort((a, b) => a.dow - b.dow);
+      const soon = addMonthsYmd(ymdInTz(), 1);
+      const closures = state.closures.filter(c => c.day <= soon);
+      const mine = nextMyBooking();
       return `
         <section class="card stack">
           <div class="facts">
@@ -752,12 +805,16 @@
           ${offlineNotice()}
           <a class="btn btn-red" href="#/book">Book an appointment</a>
           <a class="btn btn-ghost" href="sms:${SHOP.tel}">Text the shop</a>
+          ${mine ? `<p class="my-appt">Your appointment: ${esc(formatFull(new Date(mine.start_at)))} · <a href="#/manage/${esc(mine.id)}">View or cancel</a></p>` : ""}
         </section>
         ${hours.length ? `<section class="card">
           <h2>Hours</h2>
           <ul class="hours-list">
             ${hours.map(h => `<li><span>${esc(h.name)}</span><span>${esc(prettyHours(h))}${h.note ? `<span class="hour-note">${esc(h.note)}</span>` : ""}</span></li>`).join("")}
           </ul>
+          ${closures.length ? `<ul class="closure-list">
+            ${closures.map(c => `<li>Closed ${esc(formatDay(c.day))}${c.note ? ` <span>· ${esc(c.note)}</span>` : ""}</li>`).join("")}
+          </ul>` : ""}
         </section>` : ""}`;
     }
 
@@ -882,13 +939,14 @@
           <h2>Pay to confirm</h2>
           <p><strong>${esc(c.service_name)}</strong><br>${esc(formatFull(start))}<br>with ${esc(SHOP.stylist)}</p>
           <p class="badge">This appointment is not confirmed until you pay the ${esc(money(c.deposit_amount))} Cash App deposit and ${esc(SHOP.stylist)} marks it received.</p>
-          <p class="muted">The deposit is non-refundable once paid. Your time is held so nobody else can take it.</p>
+          <p class="muted">The deposit is non-refundable once paid. Your time is held so nobody else can take it${c.expires_at && !(state.paidClaimed || c.client_paid_claim) ? ` until <strong>${esc(formatFull(new Date(c.expires_at)))}</strong>. If it isn't paid by then, the time is released` : ""}.</p>
           ${pay ? `<a class="btn btn-red" id="cashPay" href="${esc(pay)}" target="_blank" rel="noopener">Pay ${esc(money(c.deposit_amount))} on Cash App</a>` : `<p class="err">Cash App is not set up yet. Text the shop.</p>`}
           ${state.error ? `<p class="err">${esc(state.error)}</p>` : ""}
           ${state.paidClaimed || c.client_paid_claim
             ? `<p class="ok">Told the shop you paid. It will show on her calendar after she confirms the deposit.</p>`
             : `<button class="btn btn-gold" id="paidBtn" type="button">I paid the deposit</button>`}
           <a class="btn btn-ghost" href="sms:${SHOP.tel}">Text ${esc(SHOP.phone)}</a>
+          <a class="btn btn-ghost" href="#/manage/${esc(c.id)}">Cancel appointment</a>
           <a class="btn btn-ghost" href="#/">Done</a>
         </section>`;
       }
@@ -899,7 +957,46 @@
           <p><strong>${esc(c.service_name)}</strong><br>${esc(formatFull(start))}<br>with ${esc(SHOP.stylist)}</p>
           <button class="btn btn-red" id="icsBtn" type="button">Add to calendar</button>
           <a class="btn btn-ghost" href="sms:${SHOP.tel}">Text ${esc(SHOP.phone)}</a>
+          <a class="btn btn-ghost" href="#/manage/${esc(c.id)}">Cancel appointment</a>
           <a class="btn btn-ghost" href="#/">Done</a>
+          <p class="muted tiny">To cancel later, use the link on the home page or in your calendar event.</p>
+        </section>`;
+    }
+    function viewManage() {
+      const m = state.manage;
+      if (!m || m.loading) return `<section class="card stack"><h2>Your appointment</h2><p class="muted">Loading…</p></section>`;
+      if (m.loadError) {
+        return `<section class="card stack">
+          <h2>Your appointment</h2>
+          <p class="err">${esc(m.loadError)}</p>
+          <a class="btn btn-ghost" href="sms:${SHOP.tel}">Text ${esc(SHOP.phone)}</a>
+          <a class="btn btn-ghost" href="#/">Home</a>
+        </section>`;
+      }
+      const b = m.data;
+      const start = new Date(b.start_at);
+      const future = start.getTime() > Date.now();
+      const open = future && (b.status === "booked" || b.status === "pending_deposit");
+      const statusText = b.status === "cancelled" ? "Cancelled"
+        : b.status === "done" ? "Completed"
+        : b.status === "pending_deposit" ? "Not confirmed yet · waiting on the deposit"
+        : "Confirmed";
+      return `
+        <section class="card stack">
+          <h2>Your appointment</h2>
+          <p><strong>${esc(b.service_name)}</strong><br>${esc(formatFull(start))}<br>with ${esc(SHOP.stylist)}</p>
+          <p class="${b.status === "cancelled" ? "err" : "muted"}">${esc(statusText)}</p>
+          ${m.cancelled ? `<p class="ok">Your appointment is cancelled. ${esc(SHOP.stylist)} has been told.</p>` : ""}
+          ${open ? `
+            ${b.deposit_amount ? `<p class="badge">Deposits are non-refundable.</p>` : ""}
+            <label class="field">Phone number you booked with
+              <input id="managePhone" type="tel" inputmode="tel" autocomplete="tel" value="${esc(m.phone || "")}" placeholder="918-555-0100" />
+            </label>
+            ${m.error ? `<p class="err">${esc(m.error)}</p>` : ""}
+            <button class="btn btn-red" id="manageCancel" type="button" ${m.busy ? "disabled" : ""}>${m.busy ? "Cancelling…" : "Cancel appointment"}</button>
+          ` : ""}
+          <a class="btn btn-ghost" href="sms:${SHOP.tel}">Text ${esc(SHOP.phone)}</a>
+          <a class="btn btn-ghost" href="#/">Home</a>
         </section>`;
     }
     function viewDepositModal() {
@@ -1015,6 +1112,7 @@
           ${b.status === "pending_deposit" ? `
             <div class="muted tiny">Requested ${esc(formatFull(new Date(b.created_at)))}</div>
             <p class="${b.client_paid_claim ? "ok" : "badge"}">${b.client_paid_claim ? "Client says they paid on Cash App." : `Awaiting ${esc(money(b.deposit_amount))} Cash App deposit`}</p>
+            ${!b.client_paid_claim && b.expires_at ? `<div class="muted tiny">Time is released automatically at ${esc(formatFull(new Date(b.expires_at)))} if unpaid</div>` : ""}
             <div class="btn-row" style="margin-top:8px">
               <button class="btn btn-gold" data-deposit-ok="${b.id}" type="button">Deposit received</button>
               <button class="btn btn-ghost" data-cancel="${b.id}" type="button">Cancel</button>
@@ -1060,8 +1158,12 @@
     }
     function viewOwnerBookings() {
       const pending = state.bookings.filter(b => b.status === "pending_deposit");
-      const upcoming = state.bookings.filter(b => b.status === "booked" && new Date(b.end_at) >= Date.now() - 3600000);
-      const past = state.bookings.filter(b => (b.status === "booked" || b.status === "done") && new Date(b.end_at) < Date.now() - 3600000);
+      const now = Date.now();
+      const upcoming = state.bookings.filter(b => b.status === "booked" && new Date(b.end_at) >= now);
+      const pastCutoff = now - 60 * 24 * 3600000;
+      const past = state.bookings
+        .filter(b => !isBlock(b) && (b.status === "done" || b.status === "booked") && new Date(b.end_at) < now && new Date(b.end_at) >= pastCutoff)
+        .sort((a, b) => new Date(b.start_at) - new Date(a.start_at));
       const list = (items) => items.length ? items.map(bookingCard).join("") : `<p class="muted">None yet.</p>`;
       return `
         <div class="stack">
@@ -1085,7 +1187,7 @@
             <label class="field">Label <input id="blockLabel" placeholder="Lunch, running late…" /></label>
             <button class="btn btn-gold" id="blockBtn" type="button">Block this time</button>
           </div>
-          ${state.bookView === "list" ? `<h3>Past</h3>${list(past)}` : ""}
+          ${state.bookView === "list" ? `<h3>Past 60 days</h3><p class="muted tiny">Finished appointments are marked done automatically.</p>${list(past)}` : ""}
         </div>`;
     }
     function viewOwnerHours() {
@@ -1109,7 +1211,21 @@
             </label>
           </div>`).join("")}
         <button class="btn btn-red" type="submit">Save hours</button>
-      </form>`;
+      </form>
+      <div class="stack">
+        <h3>Close a specific date</h3>
+        <p class="muted tiny">Closes just that one day. Clients can't book it, and it shows on the main page.</p>
+        <label class="field">Date <input type="date" id="closeDate" min="${ymdInTz()}" /></label>
+        <label class="field">Note on the main page
+          <input id="closeNote" maxlength="80" placeholder="Closed due to emergency" />
+        </label>
+        <button class="btn btn-gold" id="closeBtn" type="button">Close this date</button>
+        ${state.closures.length ? state.closures.map(c => `
+          <div class="closure-row">
+            <div><strong>${esc(formatDay(c.day))}</strong>${c.note ? `<div class="muted tiny">${esc(c.note)}</div>` : ""}</div>
+            <button class="btn btn-ghost" data-reopen="${esc(c.day)}" type="button">Reopen</button>
+          </div>`).join("") : `<p class="muted tiny">No dates closed.</p>`}
+      </div>`;
     }
     function viewOwnerServices() {
       return `
@@ -1300,6 +1416,10 @@
       document.querySelectorAll("form.svc-edit[data-id]").forEach(form => form.addEventListener("submit", e => saveService(e, form)));
       document.getElementById("newSvc")?.addEventListener("submit", addService);
       document.querySelectorAll("[data-del]").forEach(el => el.addEventListener("click", () => deleteService(el.dataset.del)));
+      document.getElementById("closeBtn")?.addEventListener("click", addClosure);
+      document.querySelectorAll("[data-reopen]").forEach(el => el.addEventListener("click", () => removeClosure(el.dataset.reopen)));
+      document.getElementById("managePhone")?.addEventListener("input", e => { if (state.manage) state.manage.phone = e.target.value; });
+      document.getElementById("manageCancel")?.addEventListener("click", cancelMine);
       document.getElementById("copyBtn")?.addEventListener("click", copyLink);
       document.getElementById("shareBtn")?.addEventListener("click", nativeShare);
       document.getElementById("qrDl")?.addEventListener("click", downloadQr);
@@ -1339,6 +1459,7 @@
         if (error) throw error;
         state.confirmation = data;
         state.paidClaimed = false;
+        rememberBooking(data);
         state.loading = false;
         location.hash = "#/done";
       } catch (e) {
@@ -1363,7 +1484,8 @@
         `DTSTART;TZID=America/Chicago:${stampLocal(new Date(c.start_at))}`,
         `DTEND;TZID=America/Chicago:${stampLocal(new Date(c.end_at))}`,
         `SUMMARY:Brassy Monkey — ${c.service_name}`,
-        `DESCRIPTION:With ${SHOP.stylist}`,
+        `DESCRIPTION:With ${SHOP.stylist}\\nNeed to cancel? ${publicUrl()}#/manage/${c.id}`,
+        `URL:${publicUrl()}#/manage/${c.id}`,
         `LOCATION:${SHOP.address}\\, ${SHOP.city}`,
         "END:VEVENT", "END:VCALENDAR"
       ].join("\r\n");
@@ -1457,6 +1579,63 @@
       state.paidClaimed = true;
       if (state.confirmation) state.confirmation.client_paid_claim = true;
       render();
+    }
+    async function loadManage() {
+      const id = manageId();
+      const phone = state.manage?.id === id ? state.manage.phone : (state.confirmation?.id === id ? state.phone : "");
+      if (!id) { state.manage = { id, loadError: "That link is not complete. Text the shop to cancel." }; return; }
+      state.manage = { id, loading: true, phone };
+      render();
+      const { data, error } = await sb.rpc("client_get_booking", { p_id: id });
+      if (error) {
+        state.manage = { id, loadError: errText(error), phone };
+        return;
+      }
+      if (data.status === "cancelled" || data.status === "done") forgetBooking(id);
+      state.manage = { id, data, phone };
+    }
+    async function cancelMine() {
+      const m = state.manage;
+      if (!m?.data) return;
+      const phone = document.getElementById("managePhone")?.value || m.phone || "";
+      if (!confirm("Cancel this appointment?")) return;
+      m.phone = phone;
+      m.error = "";
+      m.busy = true;
+      render();
+      const { error } = await sb.rpc("client_cancel_booking", { p_id: m.id, p_phone: phone });
+      m.busy = false;
+      if (error) { m.error = errText(error); render(); return; }
+      forgetBooking(m.id);
+      m.data = { ...m.data, status: "cancelled" };
+      m.cancelled = true;
+      render();
+    }
+    async function addClosure() {
+      const day = document.getElementById("closeDate")?.value;
+      const note = document.getElementById("closeNote")?.value || "";
+      if (!day) { showError("Pick a date to close."); return; }
+      const { data, error } = await sb.rpc("owner_add_closure", { pin: ownerPin(), p_day: day, p_note: note });
+      if (error) { showError(error); return; }
+      await refreshOwner();
+      const n = Number(data) || 0;
+      showSaved(n
+        ? `${formatDay(day)} is closed. You still have ${n} appointment${n === 1 ? "" : "s"} that day. Cancel ${n === 1 ? "it" : "them"} in Bookings and text the client${n === 1 ? "" : "s"}.`
+        : `${formatDay(day)} is closed.`);
+    }
+    async function removeClosure(day) {
+      const { error } = await sb.rpc("owner_remove_closure", { pin: ownerPin(), p_day: day });
+      if (error) { showError(error); return; }
+      await refreshOwner();
+      showSaved(`${formatDay(day)} is open again.`);
+    }
+    async function pruneMyBookings() {
+      const upcoming = myBookings().filter(b => new Date(b.start_at).getTime() > Date.now());
+      saveMyBookings(upcoming);
+      for (const b of upcoming) {
+        const { data, error } = await sb.rpc("client_get_booking", { p_id: b.id });
+        if (error || data?.status === "cancelled" || data?.status === "done") forgetBooking(b.id);
+      }
     }
     async function blockTime() {
       const date = document.getElementById("blockDate").value;
@@ -1581,11 +1760,16 @@
         state.offline = true;
         state.error = "";
       }
+      if (routeFromHash() === "manage") await loadManage();
       render();
+      if (routeFromHash() === "home" && myBookings().length) {
+        pruneMyBookings().then(() => { if (routeFromHash() === "home") render(); });
+      }
     }
     window.addEventListener("hashchange", async () => {
       state.error = "";
       const next = routeFromHash();
+      if (next === "manage") await loadManage();
       if (next === "book" && state.route !== "book") {
         resetBooking();
         if (state.offline) {
